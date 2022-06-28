@@ -116,3 +116,20 @@ MIR_CORE_DLL(int) Utils_AssertInsideScreen(RECT *rc)
 
 	return 1;
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////
+
+static NONCLIENTMETRICSW ncm = {};
+
+MIR_CORE_DLL(int) Utils_CorrectFontSize(int size)
+{
+	if (!g_bEnableDpiAware)
+		return size;
+
+	if (!ncm.cbSize) {
+		ncm.cbSize = sizeof(ncm);
+		SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, FALSE);
+	}
+
+	return size * ncm.lfMessageFont.lfHeight / -12;
+}

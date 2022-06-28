@@ -490,6 +490,7 @@ protected:
 	bool    m_isModal = false;
 	bool    m_bInitialized = false;
 	bool    m_forceResizable = false;
+	bool    m_bFixedSize;
 	bool    m_bSucceeded = false; // was IDOK pressed or not
 	bool    m_bExiting = false; // window received WM_CLOSE and gonna die soon
 
@@ -509,6 +510,7 @@ protected:
 
 	// miranda-related stuff
 	virtual int Resizer(UTILRESIZECONTROL *urc);
+	virtual void OnResize();
 	virtual void OnReset();
 	virtual void OnChange();
 
@@ -1255,7 +1257,7 @@ public:
 	void       SelectSetFirstVisible(HTREEITEM hItem);
 	COLORREF   SetBkColor(COLORREF clBack);
 	void       SetCheckState(HTREEITEM hItem, uint32_t state);
-	void       SetImageList(HIMAGELIST hIml, int iImage);
+	HIMAGELIST SetImageList(HIMAGELIST hIml, int iImage);
 	void       SetIndent(int iIndent);
 	void       SetInsertMark(HTREEITEM hItem, BOOL fAfter);
 	COLORREF   SetInsertMarkColor(COLORREF clMark);
@@ -1401,7 +1403,6 @@ protected:
 // CCtrlPages
 
 #define PSN_INFOCHANGED    1
-#define PSN_PARAMCHANGED   2
 
 // force-send a PSN_INFOCHANGED to all pages
 #define PSM_FORCECHANGED  (WM_USER+100)

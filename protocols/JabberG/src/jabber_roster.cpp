@@ -170,7 +170,7 @@ class CRosterEditorDlg : public CJabberDlgBase
 
 		m_list.SetItemText(index, 1, Utf2T(nick));
 		m_list.SetItemText(index, 2, Utf2T(group));
-		m_list.SetItemText(index, 3, Utf2T(subscr));
+		m_list.SetItemText(index, 3, TranslateW(Utf2T(subscr)));
 		return index;
 	}
 
@@ -336,9 +336,8 @@ public:
 
 				T2Utf szJid(jid), szName(name), szGroup(group), szSubscr(subscr);
 				auto *itemRoster = XmlGetChildByTag(queryRoster, "item", "jid", szJid);
-				BOOL bRemove = !m_list.GetCheckState(index);
-				if (itemRoster && bRemove) {
-					//delete item
+				bool bRemove = !m_list.GetCheckState(index);
+				if (itemRoster && bRemove) { // delete item
 					XmlNodeIq iq(m_proto->AddIQ(&CJabberProto::_RosterHandleGetRequest, JABBER_IQ_TYPE_SET));
 					iq << XCHILDNS("query", JABBER_FEAT_IQ_ROSTER) << XCHILD("item") << XATTR("jid", szJid) << XATTR("subscription", "remove");
 					m_proto->m_ThreadInfo->send(iq);

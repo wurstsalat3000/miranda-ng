@@ -21,72 +21,101 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "stdafx.h"
 
-void UpDate_CountryIcon(HWND hCtrl, int countryID)
+PSPBaseDlg::PSPBaseDlg(int idDialog) :
+	CUserInfoPageDlg(g_plugin, idDialog),
+	m_ctrlList(nullptr)
 {
-	HICON hIcon = LoadFlagIcon(countryID);
-	HICON hOld  = Static_SetIcon(hCtrl, hIcon);
-	ShowWindow(hCtrl, hIcon ? SW_SHOW : SW_HIDE);
-	IcoLib_ReleaseIcon(hOld);
+	m_bFixedSize = true;
+}
+
+bool PSPBaseDlg::OnInitDialog()
+{
+	m_ctrlList = CCtrlList::CreateObj(m_hwnd);
+
+	SendDlgItemMessage(m_hwnd, IDC_PAGETITLE, WM_SETFONT, (WPARAM)GetBoldFont(), 0);
+	return true;
+}
+
+bool PSPBaseDlg::OnRefresh()
+{
+	if (auto *pszProto = GetBaseProto())
+		if (m_ctrlList)
+			return m_ctrlList->OnInfoChanged(m_hContact, pszProto);
+
+	return false;
+}
+
+bool PSPBaseDlg::OnApply()
+{
+	if (auto *pszProto = GetBaseProto())		
+		m_ctrlList->OnApply(m_hContact, pszProto);
+	
+	return true;
+}
+
+void PSPBaseDlg::OnReset()
+{
+	m_ctrlList->OnReset();
+}
+
+void PSPBaseDlg::OnDestroy()
+{
+	m_ctrlList->Release();
 }
 
 // Default dialog procedure, which handles common functions
-INT_PTR CALLBACK PSPBaseProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+INT_PTR PSPBaseDlg::DlgProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	CCtrlList *pCtrlList;
+	switch (uMsg) {
+	// set propertysheet page's background white in aero mode
+	case WM_CTLCOLORSTATIC:
+	case WM_CTLCOLORDLG:
+		if (IsAeroMode())
+			return (INT_PTR)GetStockBrush(WHITE_BRUSH);
+		break;
 
-	pCtrlList = CCtrlList::GetObj(hDlg);
-	if (PtrIsValid(pCtrlList)) {
-		switch (uMsg) {
-		case WM_INITDIALOG:
-			return TRUE;
+	// Set text color of edit boxes according to the source of information they display.
+	case WM_CTLCOLOREDIT:
+		if (m_ctrlList)
+			return m_ctrlList->OnSetTextColour((HWND)lParam, (HDC)wParam);
+		break;
 
-		// set propertysheet page's background white in aero mode
-		case WM_CTLCOLORSTATIC:
-		case WM_CTLCOLORDLG:
-			if (IsAeroMode())
-				return (INT_PTR)GetStockBrush(WHITE_BRUSH);
-			break;
-
-		// Set text color of edit boxes according to the source of information they display.
-		case WM_CTLCOLOREDIT:
-			return pCtrlList->OnSetTextColour((HWND)lParam, (HDC)wParam);
-
-		case WM_NOTIFY:
-			switch (((LPNMHDR)lParam)->idFrom) {
-			case 0:
-				MCONTACT hContact = (MCONTACT)((LPPSHNOTIFY)lParam)->lParam;
-				LPSTR pszProto;
-
-				switch (((LPNMHDR)lParam)->code) {
-				case PSN_RESET:
-					pCtrlList->OnReset();
-					break;
-
-				case PSN_INFOCHANGED:
-					if (PSGetBaseProto(hDlg, pszProto) && *pszProto) {
-						BOOL bChanged = (GetWindowLongPtr(hDlg, DWLP_MSGRESULT)&PSP_CHANGED) | pCtrlList->OnInfoChanged(hContact, pszProto);
-						SetWindowLongPtr(hDlg, DWLP_MSGRESULT, bChanged ? PSP_CHANGED : 0);
-					}
-					break;
-
-				case PSN_APPLY:
-					if (PSGetBaseProto(hDlg, pszProto) && *pszProto)
-						pCtrlList->OnApply(hContact, pszProto);
-					break;
-				}
-				break;
-			}
-			break;
-
-		case WM_COMMAND:
-			if (!PspIsLocked(hDlg))
-				pCtrlList->OnChangedByUser(LOWORD(wParam), HIWORD(wParam));
-			break;
-
-		case WM_DESTROY:
-			// destroy all control objects and the list
-			pCtrlList->Release();
-		}
+	case WM_COMMAND:
+		if (m_ctrlList && !PspIsLocked(m_hwnd))
+			m_ctrlList->OnChangedByUser(LOWORD(wParam), HIWORD(wParam));
+		break;
 	}
-	return 0;
+	
+	return CUserInfoPageDlg::DlgProc(uMsg, wParam, lParam);
+}
+
+HFONT PSPBaseDlg::GetBoldFont() const
+{
+	HFONT res = nullptr;
+	return SendMessage(m_hwndParent, PSM_GETBOLDFONT, INDEX_CURPAGE, LPARAM(&res)) ? res : nullptr;
+}
+
+MCONTACT PSPBaseDlg::GetContact() const
+{
+	MCONTACT res = 0;
+	return SendMessage(m_hwndParent, PSM_GETCONTACT, INDEX_CURPAGE, LPARAM(&res)) ? res : 0;
+}
+
+const char *PSPBaseDlg::GetBaseProto() const
+{
+	const char *res = "";
+	return (SendMessage(m_hwndParent, PSM_GETBASEPROTO, INDEX_CURPAGE, LPARAM(&res)) && *res) ? res : nullptr;
+}
+
+void PSPBaseDlg::UpdateCountryIcon(CCtrlCombo &pCombo)
+{
+	LPIDSTRLIST pd = (LPIDSTRLIST)pCombo.GetCurData();
+	if (pd == nullptr)
+		return;
+
+	auto *pCtrl = FindControl(ICO_COUNTRY);
+	HICON hIcon = LoadFlagIcon(pd->nID);
+	HICON hOld = Static_SetIcon(pCtrl->GetHwnd(), hIcon);
+	pCtrl->Show(hIcon != 0);
+	IcoLib_ReleaseIcon(hOld);
 }

@@ -191,7 +191,6 @@ struct CJabberProto : public PROTO<CJabberProto>, public IJabberInterface
 	CMOption<bool> m_bAutosaveNotes;
 	CMOption<bool> m_bBsDirect;
 	CMOption<bool> m_bBsDirectManual;
-	CMOption<bool> m_bBsOnlyIBB;
 	CMOption<bool> m_bBsProxyManual;
 	CMOption<bool> m_bDisable3920auth;
 	CMOption<bool> m_bDisableFrame;
@@ -564,6 +563,8 @@ struct CJabberProto : public PROTO<CJabberProto>, public IJabberInterface
 	void       OnIqResultMucGetVoiceList(const TiXmlElement *iqNode, CJabberIqInfo *pInfo);
 	void       OnIqResultNestedRosterGroups(const TiXmlElement *iqNode, CJabberIqInfo *pInfo);
 	void       OnIqResultNotes(const TiXmlElement *iqNode, CJabberIqInfo *pInfo);
+	void       OnIqResultServerDiscoItems(const TiXmlElement *iqNode, CJabberIqInfo *pInfo);
+	void       OnIqResultServerItemsInfo(const TiXmlElement *iqNode, CJabberIqInfo *pInfo);
 	void       OnIqResultSession(const TiXmlElement *iqNode, CJabberIqInfo *pInfo);
 	void       OnIqResultSetAuth(const TiXmlElement *iqNode, CJabberIqInfo *pInfo);
 	void       OnIqResultSetBookmarks(const TiXmlElement *iqNode, CJabberIqInfo *pInfo);
@@ -713,11 +714,10 @@ struct CJabberProto : public PROTO<CJabberProto>, public IJabberInterface
 	void       OmemoPutMessageToOutgoingQueue(MCONTACT hContact, int, const char *pszSrc);
 	void       OmemoPutMessageToIncommingQueue(const TiXmlElement *node, const char *jid, time_t msgTime);
 	void       OmemoHandleMessageQueue();
-	void       OmemoHandleDeviceList(const char *from, const TiXmlElement *node);
+	bool       OmemoHandleDeviceList(const char *from, const TiXmlElement *node);
 	void       OmemoInitDevice();
-	void       OmemoAnnounceDevice();
+	void       OmemoAnnounceDevice(bool include_cache);
 	void       OmemoSendBundle();
-	void       OmemoPublishNodes();
 	bool       OmemoCheckSession(MCONTACT hContact);
 	int        OmemoEncryptMessage(XmlNode &msg, const char *msg_text, MCONTACT hContact);
 	bool       OmemoIsEnabled(MCONTACT hContact);
@@ -850,6 +850,10 @@ struct CJabberProto : public PROTO<CJabberProto>, public IJabberInterface
 		        
 	bool       ProcessCaptcha(const TiXmlElement *node, const TiXmlElement *parentNode, ThreadData *info);
 		        
+	//---- jabber_userinfo.c -------------------------------------------------------------
+
+	void       CheckOmemoUserInfo(WPARAM, USERINFOPAGE&);
+
 	//---- jabber_util.c -----------------------------------------------------------------
 	pResourceStatus ResourceInfoFromJID(const char *jid);
 
@@ -871,7 +875,9 @@ struct CJabberProto : public PROTO<CJabberProto>, public IJabberInterface
 	void       ComboLoadRecentStrings(HWND hwndDlg, UINT idcCombo, char *param, int recentCount = JABBER_DEFAULT_RECENT_COUNT);
 	void       ComboAddRecentString(HWND hwndDlg, UINT idcCombo, char *param, const wchar_t *string, int recentCount = JABBER_DEFAULT_RECENT_COUNT);
 	BOOL       EnterString(CMStringW &result, const wchar_t *caption, int type, char *windowName=nullptr, int recentCount = JABBER_DEFAULT_RECENT_COUNT, int timeout = 0);
+	
 	bool       IsMyOwnJID(const char *szJID);
+	bool       IsSendAck(MCONTACT hContact);
 				 
 	void       __cdecl LoadHttpAvatars(void* param);
 

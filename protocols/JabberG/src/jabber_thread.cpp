@@ -152,9 +152,6 @@ void CJabberProto::CheckKeepAlive()
 		}
 	}
 
-	if (m_bEnableStreamMgmt)
-		m_StrmMgmt.RequestAck();
-
 	// check expired iq requests
 	m_iqManager.CheckExpired();
 
@@ -836,7 +833,9 @@ void CJabberProto::OnProcessProtocol(const TiXmlElement *node, ThreadData *info)
 	OnConsoleProcessXml(node, JCPF_IN);
 
 	if (m_bEnableStreamMgmt)
-		m_StrmMgmt.HandleIncommingNode(node);
+		if(m_StrmMgmt.HandleIncommingNode(node))
+			return;
+
 	if (!mir_strcmp(node->Name(), "proceed"))
 		OnProcessProceed(node, info);
 	else if (!mir_strcmp(node->Name(), "compressed"))
@@ -1059,7 +1058,7 @@ void CJabberProto::OnProcessMessage(const TiXmlElement *node, ThreadData *info)
 	pResourceStatus pFromResource(ResourceInfoFromJID(from));
 
 	// Message receipts delivery request. Reply here, before a call to HandleMessagePermanent() to make sure message receipts are handled for external plugins too.
-	if (bEnableDelivery && (!type || mir_strcmpi(type, "error"))) {
+	if (IsSendAck(HContactFromJID(from)) && bEnableDelivery && (!type || mir_strcmpi(type, "error"))) {
 		bool bSendReceipt = XmlGetChildByTag(node, "request", "xmlns", JABBER_FEAT_MESSAGE_RECEIPTS) != 0;
 		bool bSendMark = XmlGetChildByTag(node, "markable", "xmlns", JABBER_FEAT_CHAT_MARKERS) != 0;
 		if (bSendReceipt || bSendMark) {
@@ -1372,7 +1371,7 @@ void CJabberProto::OnProcessMessage(const TiXmlElement *node, ThreadData *info)
 	}
 
 	// we ignore messages without server id either if MAM is enabled
-	if ((info->jabberServerCaps & JABBER_CAPS_MAM) && m_iMamMode != 0 && szMsgId == nullptr) {
+	if ((info->jabberServerCaps & JABBER_CAPS_MAM) && m_bEnableMam && m_iMamMode != 0 && szMsgId == nullptr) {
 		debugLogA("MAM is enabled, but there's no stanza-id: ignoting a message");
 		return;
 	}
@@ -1575,17 +1574,16 @@ void CJabberProto::OnProcessPresence(const TiXmlElement *node, ThreadData *info)
 			iq << XATTR("to", szBareFrom);
 			iq << XCHILDNS("pubsub", "http://jabber.org/protocol/pubsub")
 				<< XCHILD("items") << XATTR("node", JABBER_FEAT_OMEMO ".devicelist");
-			m_ThreadInfo->send(
-				XmlNodeIq(AddIQ(&CJabberProto::OnIqResultGetRoster, JABBER_IQ_TYPE_GET))
-				<< XCHILDNS("query", JABBER_FEAT_IQ_ROSTER));
-
 			m_ThreadInfo->send(iq);
 		}
+
 		if (!ListGetItemPtr(LIST_ROSTER, from)) {
 			debugLogA("Receive presence online from %s (who is not in my roster)", from);
 			ListAdd(LIST_ROSTER, from, hContact);
 		}
+
 		DBCheckIsTransportedContact(from, hContact);
+
 		int status = ID_STATUS_ONLINE;
 		if (auto *show = XmlGetChildText(node, "show")) {
 			if (!mir_strcmp(show, "away")) status = ID_STATUS_AWAY;

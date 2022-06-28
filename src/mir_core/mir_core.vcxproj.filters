@@ -179,11 +179,11 @@
     <ClCompile Include="src\Windows\fileutil.cpp">
       <Filter>Source Files\Windows</Filter>
     </ClCompile>
+    <ClCompile Include="src\Windows\diatheme.cpp">
+      <Filter>Source Files\Windows</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\miranda.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -192,6 +192,12 @@
     </ClInclude>
     <ClInclude Include="src\Windows\miranda.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Windows\diatheme.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\miranda.h">
+      <Filter>Source Files\Windows</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

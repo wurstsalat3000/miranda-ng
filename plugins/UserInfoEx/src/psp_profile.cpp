@@ -198,13 +198,12 @@ static void ProfileList_Clear(HWND hList)
  **/
 static int ProfileList_EndLabelEdit(LPLISTCTRL pList, uint8_t bSave)
 {
-	HWND hEdit;
-
 	// check if labeledit is enabled
-	if (!PtrIsValid(pList) || !pList->hList || !pList->labelEdit.hEdit)
+	if (!pList->hList || !pList->labelEdit.hEdit)
 		return 1;
+
 	// set hEdit NULL to indicate the endlabeledit call and prevent other calls
-	hEdit = pList->labelEdit.hEdit;
+	HWND hEdit = pList->labelEdit.hEdit;
 	pList->labelEdit.hEdit = nullptr;
 
 	if (bSave != FALSE && pList->labelEdit.pItem) {
@@ -257,11 +256,6 @@ static int ProfileList_EndLabelEdit(LPLISTCTRL pList, uint8_t bSave)
 	return 0;
 }
 
-static int ProfileList_EndLabelEdit(HWND hList, uint8_t bSave)
-{
-	return ProfileList_EndLabelEdit((LPLISTCTRL)GetUserData(hList), bSave);
-}
-
 /**
  * name:	ProfileList_BeginLabelEdit
  * desc:	create an edit control to edit the label of the selected item
@@ -272,16 +266,10 @@ static int ProfileList_EndLabelEdit(HWND hList, uint8_t bSave)
  **/
 static HWND ProfileList_BeginLabelEdit(LPLISTCTRL pList, int iItem, int iSubItem)
 {
-	LVITEM lvi;
-	LPLCITEM pItem;
-	MCONTACT hContact;
-	RECT rcList;
-	
-	if (!PtrIsValid(pList)) 
-		return nullptr;
 	if (pList->labelEdit.hEdit)
 		ProfileList_EndLabelEdit(pList, FALSE);
 
+	LVITEM lvi;
 	lvi.mask = LVIF_PARAM | LVIF_STATE;
 	lvi.stateMask = 0xFFFFFFFF;
 	lvi.iItem = iItem;
@@ -290,8 +278,9 @@ static HWND ProfileList_BeginLabelEdit(LPLISTCTRL pList, int iItem, int iSubItem
 	if (!ListView_GetItem(pList->hList, &lvi))
 		return nullptr;
 
-	pItem = (LPLCITEM)lvi.lParam;
+	LPLCITEM pItem = (LPLCITEM)lvi.lParam;
 
+	MCONTACT hContact;
 	PSGetContact(GetParent(pList->hList), hContact);
 
 	// do not edit deviders or protocol based contact information
@@ -307,6 +296,8 @@ static HWND ProfileList_BeginLabelEdit(LPLISTCTRL pList, int iItem, int iSubItem
 		ListView_GetSubItemRect(pList->hList, iItem, 1, LVIR_BOUNDS, &rc2);
 		pList->labelEdit.rcCombo.right = rc2.left;
 	}
+
+	RECT rcList;
 	GetClientRect(pList->hList, &rcList);
 	pList->labelEdit.rcCombo.right = min(pList->labelEdit.rcCombo.right, rcList.right);
 	pList->labelEdit.rcCombo.left = max(pList->labelEdit.rcCombo.left, rcList.left);
@@ -358,19 +349,6 @@ static HWND ProfileList_BeginLabelEdit(LPLISTCTRL pList, int iItem, int iSubItem
 }
 
 /**
- * name:	ProfileList_BeginLabelEdit
- * desc:	create an edit control to edit the label of the selected item
- * param:	hList	 - handle to listview control
- *			iItem	 - item index
- *			iSubItem - subitem (column) index
- * return:	handle to the edit control
- **/
-static HWND ProfileList_BeginLabelEdit(HWND hList, int iItem, int iSubItem)
-{
-	return ProfileList_BeginLabelEdit((LPLISTCTRL)GetUserData(hList), iItem, iSubItem);
-}
-
-/**
  * name:	ProfileList_GetInsertIndex
  * desc:	finds index to add the new item to and adds an devider if necessary
  * param:	hList	- handle to listcontrol to search for the index in
@@ -409,148 +387,6 @@ static int ProfileList_GetInsertIndex(HWND hList, LPTSTR pszGroup)
 			iItem = 0xFFFF;
 	}
 	return iItem;
-}
-
-/**
- * name:	ProfileList_AddNewItem
- * desc:	Ask's user for a type and adds new item to the list view
- * param:	pList	- pointer to the listview's data structure
- *			pszList	- database settings string, that identifies this category
- *
- * return:	TRUE or FALSE
- **/
-static uint8_t ProfileList_AddNewItem(HWND hDlg, LPLISTCTRL pList, const PROFILEENTRY *pEntry)
-{
-	LPLCITEM pItem;
-	LVITEM lvi;
-	MCONTACT hContact;
-
-	if (PtrIsValid(pList) && (pItem = (LPLCITEM)mir_alloc(sizeof(LCITEM)))) {
-		PSGetContact(hDlg, hContact);
-		pItem->nType = CTRL_LIST_ITEM;
-		pItem->wFlags = hContact ? CTRLF_HASCUSTOM : 0;
-		pItem->iListItem = 0;
-		pItem->pszText[0] = nullptr;
-		pItem->pszText[1] = nullptr;
-		// get category list
-		pEntry->GetList((WPARAM)&pItem->idstrListCount, (LPARAM)&pItem->idstrList);
-
-		lvi.mask = LVIF_PARAM | LVIF_STATE;
-		lvi.stateMask = 0xFFFFFFFF;
-		lvi.state = LVIS_FOCUSED | LVIS_SELECTED;
-		lvi.iItem = ProfileList_GetInsertIndex(pList->hList, pEntry->szGroup);
-		lvi.iSubItem = 0;
-		lvi.lParam = (LPARAM)pItem;
-		if ((lvi.iItem = ListView_InsertItem(pList->hList, &lvi)) >= 0) {
-			ProfileList_BeginLabelEdit(pList, lvi.iItem, 0);
-			return TRUE;
-		}
-		mir_free(pItem);
-		MsgErr(hDlg, LPGENW("Sorry, but there is a problem with adding a new item of type \"%s\""), pEntry->szGroup);
-	}	
-	return FALSE;
-}
-
-/**
- * name:	ProfileList_AddItemlistFromDB
- * desc:	reads an zero based indexed szList from the database of hContacts pszModule and fills a hList
- * param:	hList		- HANDLE to the list to fill with two columns
- *			iItem		- index of new listviewitem
- *			iImage		- image to draw from a imagelist associated with the listview
- *			hContact	- handle to the contact, whose information are read
- *			pszModule	- the module the information are stored in
- *			szCatFormat	- name of a database setting that holds the categorytext
- *			szValFormat - name of a database setting that holds the valuetext
- *			wFlags		- flags to set for a new allocated item
- *
- * return	number of added rows or -1 if listview's changed flag is set
- **/
-static int ProfileList_AddItemlistFromDB(
-				LPLISTCTRL pList,
-				int &iItem,
-				LPIDSTRLIST idList,
-				UINT nList,
-				MCONTACT hContact,
-				LPCSTR pszModule,
-				LPCSTR szCatFormat,
-				LPCSTR szValFormat,
-				uint16_t wFlags)
-{
-	DBVARIANT dbvVal, dbvCat;
-	LPLCITEM pItem;
-	LVITEM lvi;
-	UINT i, j = 0;
-	CHAR pszSetting[MAXSETTING];
-
-	lvi.iSubItem = 0;
-	lvi.mask = LVIF_PARAM;
-
-	for (i = 0, lvi.iItem = iItem; ; i++) {
-		// read the setting from db
-		mir_snprintf(pszSetting, szValFormat, i);
-		if (DB::Setting::GetTString(hContact, pszModule, pszSetting, &dbvVal))
-			break;
-		if (dbvVal.type != DBVT_WCHAR)
-			continue;
-		mir_snprintf(pszSetting, szCatFormat, i);
-		DB::Setting::GetAString(hContact, pszModule, pszSetting, &dbvCat);
-		// create the itemobject
-		if (!(pItem = (LPLCITEM)mir_alloc(sizeof(LCITEM)))) {
-			db_free(&dbvCat);
-			db_free(&dbvVal);
-			break;
-		}
-		// fill item struct
-		pItem->nType = CTRL_LIST_ITEM;
-		pItem->idstrList = idList;
-		pItem->idstrListCount = nList;
-		pItem->iListItem = 0;
-		pItem->pszText[0] = nullptr;
-		pItem->pszText[1] = dbvVal.pwszVal;
-		pItem->wFlags = wFlags;
-		lvi.lParam = (LPARAM)pItem;
-		
-		// get id-str-list-item for the category string
-		if (idList != nullptr) {
-			for (j = 0; j < nList; j++) {
-				switch (dbvCat.type) {
-				case DBVT_BYTE:
-					if (dbvCat.bVal != (uint8_t)idList[j].nID)
-						continue;
-					break;
-				case DBVT_WORD:
-					if (dbvCat.wVal != (uint16_t)idList[j].nID)
-						continue;
-					break;
-				case DBVT_DWORD:
-					if (dbvCat.dVal != (uint32_t)idList[j].nID)
-						continue;
-					break;
-				case DBVT_ASCIIZ:
-					if (mir_strcmp(dbvCat.pszVal, idList[j].pszText)) 
-						continue;
-					break;
-				}
-				pItem->iListItem = j;
-				break;
-			}
-		}
-		// item not found in the predefined category list?
-		if ((idList == nullptr || j == nList) && dbvCat.type == DBVT_ASCIIZ) {
-			pItem->pszText[0] = mir_a2u(dbvCat.pszVal);
-			db_free(&dbvCat);
-		}
-		if ((lvi.iItem = ListView_InsertItem(pList->hList, &lvi)) < 0) {
-			mir_free(pItem);
-			db_free(&dbvCat);
-			db_free(&dbvVal);
-			break;
-		}
-		lvi.iItem++;
-		dbvCat.type = dbvVal.type = DBVT_DELETED;
-	}
-	iItem = lvi.iItem;
-	return i;
 }
 
 /**
@@ -613,7 +449,7 @@ static LRESULT CALLBACK ProfileList_DropdownProc(HWND hwnd, UINT msg, WPARAM wPa
 			else
 				pList->labelEdit.dropDown.iItem = -1;
 
-			ProfileList_EndLabelEdit(pList->hList, TRUE);
+			ProfileList_EndLabelEdit(pList, TRUE);
 			return 0;
 		}
 	case WM_KILLFOCUS:
@@ -654,24 +490,20 @@ static LRESULT CALLBACK ProfileList_LabelEditProc(HWND hwnd, UINT msg, WPARAM wP
 				SendMessage(pList->hList, WM_COMMAND, MAKEWPARAM(BTN_EDIT, BN_CLICKED), (LPARAM)pList->labelEdit.hBtn);
 			return 0;
 		case VK_RETURN:
-			{
-				uint8_t bEditNext;
-				int iItem;
-		
-				if (GetWindowLongPtr(hwnd, GWL_STYLE) & ES_WANTRETURN && !(GetKeyState(VK_CONTROL) & 0x8000))
-					break;
-				if (PtrIsValid(pList = (LPLISTCTRL)GetUserData(hwnd))) {
-					bEditNext = !pList->labelEdit.iSubItem && !ProfileList_GetItemText(pList->hList, pList->labelEdit.iItem, 1, nullptr, NULL);
-					iItem = pList->labelEdit.iItem;
-					ProfileList_EndLabelEdit(pList->hList, TRUE);
-					if (bEditNext) ProfileList_BeginLabelEdit(pList->hList, pList->labelEdit.iItem, 1);
-				}
-				return 0;
+			if (GetWindowLongPtr(hwnd, GWL_STYLE) & ES_WANTRETURN && !(GetKeyState(VK_CONTROL) & 0x8000))
+				break;
+
+			if (PtrIsValid(pList = (LPLISTCTRL)GetUserData(hwnd))) {
+				bool bEditNext = !pList->labelEdit.iSubItem && !ProfileList_GetItemText(pList->hList, pList->labelEdit.iItem, 1, nullptr, NULL);
+				ProfileList_EndLabelEdit(pList, TRUE);
+				if (bEditNext)
+					ProfileList_BeginLabelEdit(pList, pList->labelEdit.iItem, 1);
 			}
+			return 0;
+
 		case VK_TAB:
 			if (PtrIsValid(pList = (LPLISTCTRL)GetUserData(hwnd))) {
 				LVITEM lvi;
-
 				lvi.mask = LVIF_STATE;
 				lvi.stateMask = LVIS_FOCUSED | LVIS_SELECTED;
 				lvi.iItem = pList->labelEdit.iItem;
@@ -679,11 +511,9 @@ static LRESULT CALLBACK ProfileList_LabelEditProc(HWND hwnd, UINT msg, WPARAM wP
 				if (!pList->labelEdit.iSubItem) {
 					lvi.iSubItem = 1;
 					lvi.state = LVIS_FOCUSED | LVIS_SELECTED;
-					ProfileList_EndLabelEdit(pList->hList, TRUE);
+					ProfileList_EndLabelEdit(pList, TRUE);
 				}
 				else {
-					UINT iSubItem = 0;
-
 					lvi.iSubItem = 0;
 					lvi.state = 0;
 
@@ -694,11 +524,10 @@ static LRESULT CALLBACK ProfileList_LabelEditProc(HWND hwnd, UINT msg, WPARAM wP
 						return 0;
 
 					// search for next valid list item (skip deviders)
-					lvi.iSubItem = iSubItem;
+					lvi.iSubItem = 0;
 					lvi.mask = LVIF_PARAM;
 					do {
 						lvi.iItem++;
-
 						if (lvi.iItem == -1 || !ListView_GetItem(pList->hList, &lvi))
 							return 0;
 					} 
@@ -710,26 +539,27 @@ static LRESULT CALLBACK ProfileList_LabelEditProc(HWND hwnd, UINT msg, WPARAM wP
 					if (!ListView_SetItem(pList->hList, &lvi))
 						return 0;
 				}
-				ProfileList_BeginLabelEdit(pList->hList, lvi.iItem, lvi.iSubItem);
+				ProfileList_BeginLabelEdit(pList, lvi.iItem, lvi.iSubItem);
 				return 0;
 			}
 			return 1;
 		}
 		break;
+
 	case WM_GETDLGCODE:
 		return DLGC_WANTALLKEYS | mir_callNextSubclass(hwnd, ProfileList_LabelEditProc, msg, wParam, lParam);
-	case WM_KILLFOCUS:
-		{
-			HWND hwndFocus = GetFocus();
 
-			if (PtrIsValid(pList = (LPLISTCTRL)GetUserData(hwnd))
-				&& hwndFocus != pList->labelEdit.dropDown.hDrop
-				&& hwndFocus != pList->labelEdit.hEdit
-				&& hwndFocus != pList->labelEdit.hBtn)
-				ProfileList_EndLabelEdit(pList, hwndFocus == pList->hList);
-			return 0;
-		}
+	case WM_KILLFOCUS:
+		HWND hwndFocus = GetFocus();
+
+		if (PtrIsValid(pList = (LPLISTCTRL)GetUserData(hwnd))
+			&& hwndFocus != pList->labelEdit.dropDown.hDrop
+			&& hwndFocus != pList->labelEdit.hEdit
+			&& hwndFocus != pList->labelEdit.hBtn)
+			ProfileList_EndLabelEdit(pList, hwndFocus == pList->hList);
+		return 0;
 	}
+
 	return mir_callNextSubclass(hwnd, ProfileList_LabelEditProc, msg, wParam, lParam);
 }
 
@@ -744,7 +574,7 @@ static LRESULT CALLBACK ProfileList_LabelEditProc(HWND hwnd, UINT msg, WPARAM wP
  **/
 static LRESULT CALLBACK ProfileList_SubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 {
-	LPLISTCTRL pList;
+	LPLISTCTRL pList = (LPLISTCTRL)GetUserData(hwnd);
 	LVHITTESTINFO hi;
 
 	switch (msg) {
@@ -758,13 +588,13 @@ static LRESULT CALLBACK ProfileList_SubclassProc(HWND hwnd, UINT msg, WPARAM wPa
 				nCurSel = ListView_GetSelectionMark(hwnd);
 				if (nCurSel == -1)
 					break;
-				ProfileList_BeginLabelEdit(hwnd, nCurSel, 0);
+				ProfileList_BeginLabelEdit(pList, nCurSel, 0);
 				return 0;
 			case VK_F3:
 				nCurSel = ListView_GetSelectionMark(hwnd);
 				if (nCurSel == -1)
 					break;
-				ProfileList_BeginLabelEdit(hwnd, nCurSel, 1);
+				ProfileList_BeginLabelEdit(pList, nCurSel, 1);
 				return 0;
 			case VK_UP:
 			case VK_DOWN:
@@ -796,10 +626,11 @@ static LRESULT CALLBACK ProfileList_SubclassProc(HWND hwnd, UINT msg, WPARAM wPa
 				ListView_SetSelectionMark(hwnd, lvi.iItem);
 				return 0;
 			}
-			break;
 		}
+		break;
+
 	case WM_MOUSEMOVE:
-		if (PtrIsValid(pList = (LPLISTCTRL)GetUserData(hwnd))) {
+		if (PtrIsValid(pList)) {
 			RECT rchWnd, rcItem;
 			SIZE textSize;
 
@@ -872,13 +703,12 @@ static LRESULT CALLBACK ProfileList_SubclassProc(HWND hwnd, UINT msg, WPARAM wPa
 		}
 		return 0;
 
-		// begin label edit
-	case WM_LBUTTONDBLCLK:
+	case WM_LBUTTONDBLCLK: // begin label edit
 		{
 			hi.pt.x = GET_X_LPARAM(lParam);
 			hi.pt.y = GET_Y_LPARAM(lParam);
 			if (ListView_SubItemHitTest(hwnd, &hi))
-				ProfileList_BeginLabelEdit(hwnd, hi.iItem, hi.iSubItem);
+				ProfileList_BeginLabelEdit(pList, hi.iItem, hi.iSubItem);
 			return TRUE;
 		}
 
@@ -902,75 +732,72 @@ static LRESULT CALLBACK ProfileList_SubclassProc(HWND hwnd, UINT msg, WPARAM wPa
 		switch (LOWORD(wParam)) {
 		// show dropdown menu for category list
 		case BTN_EDIT:
-			{
-				int i;
-				wchar_t szEdit[MAX_PATH];
+			int i;
+			wchar_t szEdit[MAX_PATH];
 
-				if (!PtrIsValid(pList = (LPLISTCTRL)GetUserData(hwnd)))
-					break;
-				GetWindowText(pList->labelEdit.hEdit, szEdit, _countof(szEdit));
-
-				// need to create the dropdown list?
-				if (pList->labelEdit.dropDown.hDrop == nullptr) {
-					const int listHeight = 120;
-					RECT rc, rcList;
-					int add;
-
-					// dropdown rect
-					GetClientRect(pList->hList, &rcList);
-					rc.left = pList->labelEdit.rcCombo.left;
-					rc.right = pList->labelEdit.rcCombo.right + pList->labelEdit.rcCombo.bottom - pList->labelEdit.rcCombo.top; 
-
-					if (rcList.bottom < pList->labelEdit.rcCombo.bottom + listHeight) {
-						rc.bottom = pList->labelEdit.rcCombo.bottom - 7; // don't ask me why!
-						rc.top = rc.bottom - listHeight;
-					}
-					else {
-						rc.top = pList->labelEdit.rcCombo.bottom;
-						rc.bottom = rc.top + listHeight;
-					}
-
-					pList->labelEdit.dropDown.hDrop = CreateWindowEx(0, L"LISTBOX", nullptr,
-						WS_CHILD | WS_BORDER | WS_VSCROLL | LBS_COMBOBOX | LBS_HASSTRINGS,
-						rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top,
-						hwnd, nullptr, g_plugin.getInst(), nullptr);
-					if (!pList->labelEdit.dropDown.hDrop)
-						return FALSE;
-					SetUserData(pList->labelEdit.dropDown.hDrop, pList);
-					mir_subclassWindow(pList->labelEdit.dropDown.hDrop, ProfileList_DropdownProc);
-					SetWindowLongPtr(pList->labelEdit.dropDown.hDrop, GWLP_ID, LIST_DROPDOWN);
-					SendMessage(pList->labelEdit.dropDown.hDrop, WM_SETFONT, (WPARAM)SendMessage(GetParent(pList->hList), WM_GETFONT, 0, 0), 0);
-
-					// add items
-					for (i = 0; i < pList->labelEdit.pItem->idstrListCount; i++) {
-						add = ListBox_AddString(pList->labelEdit.dropDown.hDrop, pList->labelEdit.pItem->idstrList[i].ptszTranslated);
-						ListBox_SetItemData(pList->labelEdit.dropDown.hDrop, add, pList->labelEdit.pItem->idstrList + i);
-						if (!mir_wstrcmp(szEdit, pList->labelEdit.pItem->idstrList[i].ptszTranslated))
-							ListBox_SetCurSel(pList->labelEdit.dropDown.hDrop, add);
-					}
-				}
-				else {
-					LPIDSTRLIST lpidList;
-
-					i = 0;
-					while (PtrIsValid(lpidList = (LPIDSTRLIST)ListBox_GetItemData(pList->labelEdit.dropDown.hDrop, i))) {
-						if (!mir_wstrcmp(szEdit, lpidList->ptszTranslated)) {
-							ListBox_SetCurSel(pList->labelEdit.dropDown.hDrop, i);
-							break;
-						}
-						i++;
-					}
-					if (i == pList->labelEdit.pItem->idstrListCount) 
-						ListBox_SetCurSel(pList->labelEdit.dropDown.hDrop, -1);
-				}
-				if (IsWindowVisible(pList->labelEdit.dropDown.hDrop)) {
-					SetFocus(pList->labelEdit.hEdit);
-				}
-				else {
-					ShowWindow(pList->labelEdit.dropDown.hDrop, SW_SHOW);
-					//SetFocus(pList->labelEdit.dropDown.hDrop);
-				}
+			if (!PtrIsValid(pList = (LPLISTCTRL)GetUserData(hwnd)))
 				break;
+			GetWindowText(pList->labelEdit.hEdit, szEdit, _countof(szEdit));
+
+			// need to create the dropdown list?
+			if (pList->labelEdit.dropDown.hDrop == nullptr) {
+				const int listHeight = 120;
+				RECT rc, rcList;
+				int add;
+
+				// dropdown rect
+				GetClientRect(pList->hList, &rcList);
+				rc.left = pList->labelEdit.rcCombo.left;
+				rc.right = pList->labelEdit.rcCombo.right + pList->labelEdit.rcCombo.bottom - pList->labelEdit.rcCombo.top; 
+
+				if (rcList.bottom < pList->labelEdit.rcCombo.bottom + listHeight) {
+					rc.bottom = pList->labelEdit.rcCombo.bottom - 7; // don't ask me why!
+					rc.top = rc.bottom - listHeight;
+				}
+				else {
+					rc.top = pList->labelEdit.rcCombo.bottom;
+					rc.bottom = rc.top + listHeight;
+				}
+
+				pList->labelEdit.dropDown.hDrop = CreateWindowEx(0, L"LISTBOX", nullptr,
+					WS_CHILD | WS_BORDER | WS_VSCROLL | LBS_COMBOBOX | LBS_HASSTRINGS,
+					rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top,
+					hwnd, nullptr, g_plugin.getInst(), nullptr);
+				if (!pList->labelEdit.dropDown.hDrop)
+					return FALSE;
+				SetUserData(pList->labelEdit.dropDown.hDrop, pList);
+				mir_subclassWindow(pList->labelEdit.dropDown.hDrop, ProfileList_DropdownProc);
+				SetWindowLongPtr(pList->labelEdit.dropDown.hDrop, GWLP_ID, LIST_DROPDOWN);
+				SendMessage(pList->labelEdit.dropDown.hDrop, WM_SETFONT, (WPARAM)SendMessage(GetParent(pList->hList), WM_GETFONT, 0, 0), 0);
+
+				// add items
+				for (i = 0; i < pList->labelEdit.pItem->idstrListCount; i++) {
+					add = ListBox_AddString(pList->labelEdit.dropDown.hDrop, pList->labelEdit.pItem->idstrList[i].ptszTranslated);
+					ListBox_SetItemData(pList->labelEdit.dropDown.hDrop, add, pList->labelEdit.pItem->idstrList + i);
+					if (!mir_wstrcmp(szEdit, pList->labelEdit.pItem->idstrList[i].ptszTranslated))
+						ListBox_SetCurSel(pList->labelEdit.dropDown.hDrop, add);
+				}
+			}
+			else {
+				LPIDSTRLIST lpidList;
+
+				i = 0;
+				while (PtrIsValid(lpidList = (LPIDSTRLIST)ListBox_GetItemData(pList->labelEdit.dropDown.hDrop, i))) {
+					if (!mir_wstrcmp(szEdit, lpidList->ptszTranslated)) {
+						ListBox_SetCurSel(pList->labelEdit.dropDown.hDrop, i);
+						break;
+					}
+					i++;
+				}
+				if (i == pList->labelEdit.pItem->idstrListCount) 
+					ListBox_SetCurSel(pList->labelEdit.dropDown.hDrop, -1);
+			}
+			if (IsWindowVisible(pList->labelEdit.dropDown.hDrop)) {
+				SetFocus(pList->labelEdit.hEdit);
+			}
+			else {
+				ShowWindow(pList->labelEdit.dropDown.hDrop, SW_SHOW);
+				//SetFocus(pList->labelEdit.dropDown.hDrop);
 			}
 		}
 		break;
@@ -1016,359 +843,473 @@ static LRESULT CALLBACK ProfileList_SubclassProc(HWND hwnd, UINT msg, WPARAM wPa
  *
  * return:	0 or 1
  **/
-INT_PTR CALLBACK PSPProcContactProfile(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+
+class PSPContactProfileDlg : public PSPBaseDlg
 {
-	HWND hList = GetDlgItem(hDlg, LIST_PROFILE);
-	LPLISTCTRL pList;
-	LVHITTESTINFO hi;
+	CCtrlListView m_list;
 
-	switch (uMsg) {
-	case WM_INITDIALOG:
-		{
-			LVCOLUMN lvc;
-			RECT rc;
-			LOGFONT lf;
-			HFONT hFont;
-			TOOLINFO ti;
+	/**
+	* name:	ProfileList_AddItemlistFromDB
+	* desc:	reads an zero based indexed szList from the database of hContacts pszModule and fills a hList
+	* param:	iItem		- index of new listviewitem
+	*			iImage		- image to draw from a imagelist associated with the listview
+	*			hContact	- handle to the contact, whose information are read
+	*			pszModule	- the module the information are stored in
+	*			szCatFormat	- name of a database setting that holds the categorytext
+	*			szValFormat - name of a database setting that holds the valuetext
+	*			wFlags		- flags to set for a new allocated item
+	*
+	* return	number of added rows or -1 if listview's changed flag is set
+	**/
 
-			if (!hList || !(pList = (LPLISTCTRL)mir_alloc(sizeof(LISTCTRL)))) 
-				return FALSE;
-			memset(pList, 0, sizeof(LISTCTRL));
+	int ProfileList_AddItemlistFromDB(
+		int &iItem,
+		LPIDSTRLIST idList,
+		int nList,
+		MCONTACT hContact,
+		LPCSTR pszModule,
+		LPCSTR szCatFormat,
+		LPCSTR szValFormat,
+		uint16_t wFlags)
+	{
+		DBVARIANT dbvVal, dbvCat;
+		CHAR pszSetting[MAXSETTING];
 
-			TranslateDialogDefault(hDlg);
-			Ctrl_InitTextColours();
+		LVITEM lvi;
+		lvi.iSubItem = 0;
+		lvi.mask = LVIF_PARAM;
+		lvi.iItem = iItem;
 
-			// init info structure
-			pList->hList = hList;
-			pList->nType = CTRL_LIST_PROFILE;
-			memset(&pList->labelEdit, 0, sizeof(pList->labelEdit));
-			SetUserData(hList, pList);
+		int i;
+		for (i = 0; ; i++) {
+			// read the setting from db
+			mir_snprintf(pszSetting, szValFormat, i);
+			if (DB::Setting::GetWString(hContact, pszModule, pszSetting, &dbvVal))
+				break;
+			if (dbvVal.type != DBVT_WCHAR)
+				continue;
+			mir_snprintf(pszSetting, szCatFormat, i);
+			DB::Setting::GetAString(hContact, pszModule, pszSetting, &dbvCat);
+			
+			// create the item object
+			LPLCITEM pItem = (LPLCITEM)mir_alloc(sizeof(LCITEM));
+			pItem->nType = CTRL_LIST_ITEM;
+			pItem->idstrList = idList;
+			pItem->idstrListCount = nList;
+			pItem->iListItem = 0;
+			pItem->pszText[0] = nullptr;
+			pItem->pszText[1] = dbvVal.pwszVal;
+			pItem->wFlags = wFlags;
+			lvi.lParam = (LPARAM)pItem;
 
-			// set new window procedure
-			mir_subclassWindow(hList, ProfileList_SubclassProc);
-
-			// remove static edge in aero mode
-			if (IsAeroMode())
-				SetWindowLongPtr(hList, GWL_EXSTYLE, GetWindowLongPtr(hList, GWL_EXSTYLE) & ~WS_EX_STATICEDGE);
-
-			// insert columns into the listboxes
-			ListView_SetExtendedListViewStyle(hList, LVS_EX_FULLROWSELECT);
-
-
-			PSGetBoldFont(hDlg, hFont);
-			SendDlgItemMessage(hDlg, IDC_PAGETITLE, WM_SETFONT, (WPARAM)hFont, 0);
-
-			// set listfont
-			pList->hFont = (HFONT)SendMessage(hList, WM_GETFONT, 0, 0);
-			pList->wFlags |= LVF_EDITLABEL;
-			GetObject(pList->hFont, sizeof(lf), &lf);
-			lf.lfHeight -= 6;
-			hFont = CreateFontIndirect(&lf);
-			SendMessage(hList, WM_SETFONT, (WPARAM)hFont, 0);
-
-			GetClientRect(hList, &rc);
-			rc.right -= GetSystemMetrics(SM_CXVSCROLL);
-
-			// initiate the tooltips
-			pList->hTip = CreateWindowEx(WS_EX_TOPMOST, TOOLTIPS_CLASS, nullptr, WS_POPUP | TTS_BALLOON | TTS_NOPREFIX | TTS_ALWAYSTIP,
-				CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, hList, nullptr, g_plugin.getInst(), nullptr);
-			if (pList->hTip) {
-				SetWindowPos(pList->hTip, HWND_TOPMOST, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-					SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-
-				memset(&ti, 0, sizeof(TOOLINFO));
-				ti.cbSize = sizeof(TOOLINFO);
-				ti.uFlags = TTF_IDISHWND | TTF_SUBCLASS | TTF_TRANSPARENT;
-				ti.hinst = g_plugin.getInst();
-				ti.hwnd = hList;
-				ti.uId = (UINT_PTR)hList;
-				SendMessage(pList->hTip, TTM_ADDTOOL, NULL, (LPARAM)&ti);
-				SendMessage(pList->hTip, TTM_ACTIVATE, FALSE, (LPARAM)&ti);
-			}
-
-			// insert columns into the listboxes
-			lvc.mask = LVCF_WIDTH;
-			lvc.cx = rc.right / 8 * 3;
-			ListView_InsertColumn(hList, 0, &lvc);
-			lvc.cx = rc.right / 8 * 5;
-			ListView_InsertColumn(hList, 1, &lvc);
-			return TRUE;
-		}
-
-	case WM_CTLCOLORSTATIC:
-	case WM_CTLCOLORDLG:
-		if (IsAeroMode())
-			return (INT_PTR)GetStockBrush(WHITE_BRUSH);
-		break;
-
-	case WM_NOTIFY:
-		switch (((LPNMHDR)lParam)->idFrom) {
-		case 0:
-			{
-				MCONTACT hContact = (MCONTACT)((LPPSHNOTIFY)lParam)->lParam;
-				LPCSTR pszProto;
-
-				if (!PtrIsValid(pList = (LPLISTCTRL)GetUserData(hList)))
-					break;
-
-				// some account data may have changed so reread database
-				switch (((LPNMHDR)lParam)->code) {
-				case PSN_INFOCHANGED:
-					{
-						uint8_t msgResult = 0;
-						LPIDSTRLIST idList;
-						UINT nList;
-						uint8_t i;
-						int iItem = 0, iGrp = 0, numProtoItems, numUserItems;
-
-						if (!(pList->wFlags & CTRLF_CHANGED) && PSGetBaseProto(hDlg, pszProto) && *pszProto != 0) {
-							ProfileList_Clear(hList);
-
-							// insert the past information
-							for (i = 0; i < 3; i++) {
-								pFmt[i].GetList((WPARAM)&nList, (LPARAM)&idList);
-								if ((numProtoItems = ProfileList_AddItemlistFromDB(pList, iItem, idList, nList, hContact, pszProto, pFmt[i].szCatFmt, pFmt[i].szValFmt, CTRLF_HASPROTO)) < 0)
-									return FALSE;
-
-								// scan all basic protocols for the subcontacts
-								if (DB::Module::IsMetaAndScan(pszProto)) {
-									int iDefault = db_mc_getDefaultNum(hContact);
-									MCONTACT hSubContact, hDefContact;
-									LPCSTR pszSubBaseProto;
-
-									if ((hDefContact = db_mc_getSub(hContact, iDefault)) && (pszSubBaseProto = Proto_GetBaseAccountName(hDefContact))) {
-										if ((numProtoItems += ProfileList_AddItemlistFromDB(pList, iItem, idList, nList, hDefContact, pszSubBaseProto, pFmt[i].szCatFmt, pFmt[i].szValFmt, CTRLF_HASMETA | CTRLF_HASPROTO)) < 0)
-											return FALSE;
-
-										// copy the missing settings from the other subcontacts
-										int numSubs = db_mc_getSubCount(hContact);
-										for (int j = 0; j < numSubs; j++) {
-											if (j == iDefault)
-												continue;
-											if (!(hSubContact = db_mc_getSub(hContact, j)))
-												continue;
-											if (!(pszSubBaseProto = Proto_GetBaseAccountName(hSubContact)))
-												continue;
-											if ((numProtoItems += ProfileList_AddItemlistFromDB(pList, iItem, idList, nList, hSubContact, pszSubBaseProto, pFmt[i].szCatFmt, pFmt[i].szValFmt, CTRLF_HASMETA | CTRLF_HASPROTO)) < 0)
-												return FALSE;
-											//if ((numUserItems += ProfileList_AddItemlistFromDB(pList, iItem, idList, nList, hSubContact, USERINFO, pFmt[i].szCatFmt, pFmt[i].szValFmt, CTRLF_HASMETA | CTRLF_HASPROTO)) < 0)
-											//	return FALSE;
-										}
-									}
-								}
-								if ((numUserItems = ProfileList_AddItemlistFromDB(pList, iItem, idList, nList, hContact, USERINFO, pFmt[i].szCatFmt, pFmt[i].szValFmt, CTRLF_HASCUSTOM)) < 0)
-									return FALSE;
-								if (numUserItems || numProtoItems) {
-									msgResult = PSP_CHANGED;
-									ProfileList_AddGroup(hList, pFmt[i].szGroup, iGrp);
-									iGrp = ++iItem;
-								}
-							}
-						}
-						SetWindowLongPtr(hDlg, DWLP_MSGRESULT, msgResult);
+			// get id-str-list-item for the category string
+			int j = 0;
+			if (idList != nullptr) {
+				for (j = 0; j < nList; j++) {
+					switch (dbvCat.type) {
+					case DBVT_BYTE:
+						if (dbvCat.bVal != (uint8_t)idList[j].nID)
+							continue;
+						break;
+					case DBVT_WORD:
+						if (dbvCat.wVal != (uint16_t)idList[j].nID)
+							continue;
+						break;
+					case DBVT_DWORD:
+						if (dbvCat.dVal != (uint32_t)idList[j].nID)
+							continue;
+						break;
+					case DBVT_ASCIIZ:
+						if (mir_strcmp(dbvCat.pszVal, idList[j].pszText)) 
+							continue;
 						break;
 					}
-				// user swiches to another propertysheetpage
-				case PSN_KILLACTIVE:
-					ProfileList_EndLabelEdit(hList, TRUE);
+					pItem->iListItem = j;
 					break;
-				// user selected to apply settings to the database
-				case PSN_APPLY:
-					if (pList->wFlags & CTRLF_CHANGED) {
-						uint8_t iFmt = -1;
-						int iItem;
-						LVITEM lvi;
-						wchar_t szGroup[MAX_PATH];
-						CHAR pszSetting[MAXSETTING];
-						LPLCITEM pItem;
-						LPSTR pszModule = USERINFO;
+				}
+			}
+			// item not found in the predefined category list?
+			if ((idList == nullptr || j == nList) && dbvCat.type == DBVT_ASCIIZ) {
+				pItem->pszText[0] = mir_a2u(dbvCat.pszVal);
+				db_free(&dbvCat);
+			}
+			if ((lvi.iItem = m_list.InsertItem(&lvi)) < 0) {
+				mir_free(pItem);
+				db_free(&dbvCat);
+				db_free(&dbvVal);
+				break;
+			}
+			lvi.iItem++;
+			dbvCat.type = dbvVal.type = DBVT_DELETED;
+		}
+		iItem = lvi.iItem;
+		return i;
+	}
 
-						if (!hContact)
-							PSGetBaseProto(hDlg, pszModule);
+	bool ProfileList_AddNewItem(const PROFILEENTRY *pEntry)
+	{
+		LPLCITEM pItem = (LPLCITEM)mir_alloc(sizeof(LCITEM));
+		pItem->nType = CTRL_LIST_ITEM;
+		pItem->wFlags = m_hContact ? CTRLF_HASCUSTOM : 0;
+		pItem->iListItem = 0;
+		pItem->pszText[0] = nullptr;
+		pItem->pszText[1] = nullptr;
+		// get category list
+		pEntry->GetList((WPARAM)&pItem->idstrListCount, (LPARAM)&pItem->idstrList);
 
+		LVITEM lvi;
+		lvi.mask = LVIF_PARAM | LVIF_STATE;
+		lvi.stateMask = 0xFFFFFFFF;
+		lvi.state = LVIS_FOCUSED | LVIS_SELECTED;
+		lvi.iItem = ProfileList_GetInsertIndex(m_list.GetHwnd(), pEntry->szGroup);
+		lvi.iSubItem = 0;
+		lvi.lParam = (LPARAM)pItem;
+		if ((lvi.iItem = m_list.InsertItem(&lvi)) >= 0) {
+			ProfileList_BeginLabelEdit(pList, lvi.iItem, 0);
+			return true;
+		}
+
+		mir_free(pItem);
+		MsgErr(m_hwnd, LPGENW("Sorry, but there is a problem with adding a new item of type \"%s\""), pEntry->szGroup);
+		return false;
+	}
+
+public:
+	PSPContactProfileDlg() :
+		PSPBaseDlg(IDD_CONTACT_PROFILE),
+		m_list(this, LIST_PROFILE)
+	{
+		pList = (LPLISTCTRL)mir_calloc(sizeof(LISTCTRL));
+	}
+
+	LPLISTCTRL pList;
+
+	bool OnInitDialog() override
+	{
+		PSPBaseDlg::OnInitDialog();
+
+		Ctrl_InitTextColours();
+
+		// init info structure
+		pList->hList = m_list.GetHwnd();
+		pList->nType = CTRL_LIST_PROFILE;
+		memset(&pList->labelEdit, 0, sizeof(pList->labelEdit));
+		SetUserData(m_list.GetHwnd(), pList);
+
+		// set new window procedure
+		mir_subclassWindow(m_list.GetHwnd(), ProfileList_SubclassProc);
+
+		// remove static edge in aero mode
+		if (IsAeroMode())
+			SetWindowLongPtr(m_list.GetHwnd(), GWL_EXSTYLE, GetWindowLongPtr(m_list.GetHwnd(), GWL_EXSTYLE) & ~WS_EX_STATICEDGE);
+
+		// insert columns into the listboxes
+		m_list.SetExtendedListViewStyle(LVS_EX_FULLROWSELECT);
+
+		// set listfont
+		pList->hFont = (HFONT)m_list.SendMsg(WM_GETFONT, 0, 0);
+		pList->wFlags |= LVF_EDITLABEL;
+
+		LOGFONT lf;
+		GetObject(pList->hFont, sizeof(lf), &lf);
+		lf.lfHeight -= 6;
+		HFONT hFont = CreateFontIndirect(&lf);
+		m_list.SendMsg(WM_SETFONT, (WPARAM)hFont, 0);
+
+		RECT rc;
+		GetClientRect(m_list.GetHwnd(), &rc);
+		rc.right -= GetSystemMetrics(SM_CXVSCROLL);
+
+		// initiate the tooltips
+		pList->hTip = CreateWindowEx(WS_EX_TOPMOST, TOOLTIPS_CLASS, nullptr, WS_POPUP | TTS_BALLOON | TTS_NOPREFIX | TTS_ALWAYSTIP,
+			CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, m_list.GetHwnd(), nullptr, g_plugin.getInst(), nullptr);
+		if (pList->hTip) {
+			SetWindowPos(pList->hTip, HWND_TOPMOST, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+				SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
+			TOOLINFO ti;
+			memset(&ti, 0, sizeof(TOOLINFO));
+			ti.cbSize = sizeof(TOOLINFO);
+			ti.uFlags = TTF_IDISHWND | TTF_SUBCLASS | TTF_TRANSPARENT;
+			ti.hinst = g_plugin.getInst();
+			ti.hwnd = m_list.GetHwnd();
+			ti.uId = (UINT_PTR)m_list.GetHwnd();
+			SendMessage(pList->hTip, TTM_ADDTOOL, NULL, (LPARAM)&ti);
+			SendMessage(pList->hTip, TTM_ACTIVATE, FALSE, (LPARAM)&ti);
+		}
+
+		// insert columns into the listboxes
+		LVCOLUMN lvc;
+		lvc.mask = LVCF_WIDTH;
+		lvc.cx = rc.right / 8 * 3;
+		m_list.InsertColumn(0, &lvc);
+		lvc.cx = rc.right / 8 * 5;
+		m_list.InsertColumn(1, &lvc);
+		return true;
+	}
+
+	bool OnApply() override
+	{
+		if (pList->wFlags & CTRLF_CHANGED) {
+			uint8_t iFmt = -1;
+			wchar_t szGroup[MAX_PATH];
+			CHAR pszSetting[MAXSETTING];
+			LPLCITEM pItem;
+			int iItem;
+			const char *pszModule = USERINFO;
+
+			if (!m_hContact)
+				pszModule = GetBaseProto();
+
+			*szGroup = 0;
+
+			LVITEM lvi;
+			lvi.mask = LVIF_TEXT | LVIF_PARAM;
+			lvi.pszText = szGroup;
+			lvi.cchTextMax = _countof(szGroup);
+
+			for (iItem = lvi.iItem = lvi.iSubItem = 0; m_list.GetItem(&lvi); lvi.iItem++) {
+				if (!PtrIsValid(pItem = (LPLCITEM)lvi.lParam)) {
+					// delete reluctant items
+					if (iFmt < _countof(pFmt)) {
+						DB::Setting::DeleteArray(m_hContact, pszModule, pFmt[iFmt].szCatFmt, iItem);
+						DB::Setting::DeleteArray(m_hContact, pszModule, pFmt[iFmt].szValFmt, iItem);
+					}
+					// find information about the group
+					for (iFmt = 0; iFmt < _countof(pFmt); iFmt++) {
+						if (!mir_wstrcmp(szGroup, pFmt[iFmt].szGroup))
+							break;
+					}
+					// indicate, no group was found. should not happen!!
+					if (iFmt == _countof(pFmt)) {
 						*szGroup = 0;
-						lvi.mask = LVIF_TEXT | LVIF_PARAM;
-						lvi.pszText = szGroup;
-						lvi.cchTextMax = _countof(szGroup);
-
-						for (iItem = lvi.iItem = lvi.iSubItem = 0; ListView_GetItem(hList, &lvi); lvi.iItem++) {
-							if (!PtrIsValid(pItem = (LPLCITEM)lvi.lParam)) {
-								// delete reluctant items
-								if (iFmt < _countof(pFmt)) {
-									DB::Setting::DeleteArray(hContact, pszModule, pFmt[iFmt].szCatFmt, iItem);
-									DB::Setting::DeleteArray(hContact, pszModule, pFmt[iFmt].szValFmt, iItem);
-								}
-								// find information about the group
-								for (iFmt = 0; iFmt < _countof(pFmt); iFmt++) {
-									if (!mir_wstrcmp(szGroup, pFmt[iFmt].szGroup))
-										break;
-								}
-								// indicate, no group was found. should not happen!!
-								if (iFmt == _countof(pFmt)) {
-									*szGroup = 0;
-									iFmt = -1;
-								}
-								iItem = 0;
-							}
-							else if (iFmt >= 0 && iFmt < _countof(pFmt)) {
-								// save value
-								if (!pItem->pszText[1] || !*pItem->pszText[1])
-									continue;
-								if (!(pItem->wFlags & (CTRLF_HASPROTO|CTRLF_HASMETA))) {
-									mir_snprintf(pszSetting, pFmt[iFmt].szValFmt, iItem);
-									db_set_ws(hContact, pszModule, pszSetting, pItem->pszText[1]);
-									// save category
-									mir_snprintf(pszSetting, pFmt[iFmt].szCatFmt, iItem);
-									if (pItem->idstrList && pItem->iListItem > 0 && pItem->iListItem < pItem->idstrListCount)
-										db_set_s(hContact, pszModule, pszSetting, (LPSTR)pItem->idstrList[pItem->iListItem].pszText);
-									else if (pItem->pszText[0] && *pItem->pszText[0])
-										db_set_ws(hContact, pszModule, pszSetting, (LPTSTR)pItem->pszText[0]);
-									else
-										db_unset(hContact, pszModule, pszSetting);
-									// redraw the item if required
-									if (pItem->wFlags & CTRLF_CHANGED) {
-										pItem->wFlags &= ~CTRLF_CHANGED;
-										ListView_RedrawItems(hList, lvi.iItem, lvi.iItem);
-									}
-									iItem++;
-								}
-							}
+						iFmt = -1;
+					}
+					iItem = 0;
+				}
+				else if (iFmt >= 0 && iFmt < _countof(pFmt)) {
+					// save value
+					if (!pItem->pszText[1] || !*pItem->pszText[1])
+						continue;
+					if (!(pItem->wFlags & (CTRLF_HASPROTO|CTRLF_HASMETA))) {
+						mir_snprintf(pszSetting, pFmt[iFmt].szValFmt, iItem);
+						db_set_ws(m_hContact, pszModule, pszSetting, pItem->pszText[1]);
+						// save category
+						mir_snprintf(pszSetting, pFmt[iFmt].szCatFmt, iItem);
+						if (pItem->idstrList && pItem->iListItem > 0 && pItem->iListItem < pItem->idstrListCount)
+							db_set_s(m_hContact, pszModule, pszSetting, (LPSTR)pItem->idstrList[pItem->iListItem].pszText);
+						else if (pItem->pszText[0] && *pItem->pszText[0])
+							db_set_ws(m_hContact, pszModule, pszSetting, (LPTSTR)pItem->pszText[0]);
+						else
+							db_unset(m_hContact, pszModule, pszSetting);
+						// redraw the item if required
+						if (pItem->wFlags & CTRLF_CHANGED) {
+							pItem->wFlags &= ~CTRLF_CHANGED;
+							m_list.RedrawItems(lvi.iItem, lvi.iItem);
 						}
-						// delete reluctant items
-						if (iFmt >= 0 && iFmt < _countof(pFmt)) {
-							DB::Setting::DeleteArray(hContact, pszModule, pFmt[iFmt].szCatFmt, iItem);
-							DB::Setting::DeleteArray(hContact, pszModule, pFmt[iFmt].szValFmt, iItem);
-						}
-
-						pList->wFlags &= ~CTRLF_CHANGED;
+						iItem++;
 					}
 				}
 			}
+			// delete reluctant items
+			if (iFmt >= 0 && iFmt < _countof(pFmt)) {
+				DB::Setting::DeleteArray(m_hContact, pszModule, pFmt[iFmt].szCatFmt, iItem);
+				DB::Setting::DeleteArray(m_hContact, pszModule, pFmt[iFmt].szValFmt, iItem);
+			}
+
+			pList->wFlags &= ~CTRLF_CHANGED;
+		}
+		
+		return PSPBaseDlg::OnApply();
+	}
+
+	bool OnRefresh() override
+	{
+		int iItem = 0, iGrp = 0, numProtoItems, numUserItems;
+
+		auto *pszProto = GetBaseProto();
+		if (!(pList->wFlags & CTRLF_CHANGED) && pszProto) {
+			ProfileList_Clear(m_list.GetHwnd());
+
+			// insert the past information
+			for (int i = 0; i < 3; i++) {
+				int nList;
+				LPIDSTRLIST idList;
+				pFmt[i].GetList((WPARAM)&nList, (LPARAM)&idList);
+				if ((numProtoItems = ProfileList_AddItemlistFromDB(iItem, idList, nList, m_hContact, pszProto, pFmt[i].szCatFmt, pFmt[i].szValFmt, CTRLF_HASPROTO)) < 0)
+					return false;
+
+				// scan all basic protocols for the subcontacts
+				if (DB::Module::IsMetaAndScan(pszProto)) {
+					int iDefault = db_mc_getDefaultNum(m_hContact);
+					MCONTACT hSubContact, hDefContact;
+					LPCSTR pszSubBaseProto;
+
+					if ((hDefContact = db_mc_getSub(m_hContact, iDefault)) && (pszSubBaseProto = Proto_GetBaseAccountName(hDefContact))) {
+						if ((numProtoItems += ProfileList_AddItemlistFromDB(iItem, idList, nList, hDefContact, pszSubBaseProto, pFmt[i].szCatFmt, pFmt[i].szValFmt, CTRLF_HASMETA | CTRLF_HASPROTO)) < 0)
+							return false;
+
+						// copy the missing settings from the other subcontacts
+						int numSubs = db_mc_getSubCount(m_hContact);
+						for (int j = 0; j < numSubs; j++) {
+							if (j == iDefault)
+								continue;
+							if (!(hSubContact = db_mc_getSub(m_hContact, j)))
+								continue;
+							if (!(pszSubBaseProto = Proto_GetBaseAccountName(hSubContact)))
+								continue;
+							if ((numProtoItems += ProfileList_AddItemlistFromDB(iItem, idList, nList, hSubContact, pszSubBaseProto, pFmt[i].szCatFmt, pFmt[i].szValFmt, CTRLF_HASMETA | CTRLF_HASPROTO)) < 0)
+								return false;
+						}
+					}
+				}
+				if ((numUserItems = ProfileList_AddItemlistFromDB(iItem, idList, nList, m_hContact, USERINFO, pFmt[i].szCatFmt, pFmt[i].szValFmt, CTRLF_HASCUSTOM)) < 0)
+					return false;
+
+				if (numUserItems || numProtoItems) {
+					ProfileList_AddGroup(m_list.GetHwnd(), pFmt[i].szGroup, iGrp);
+					iGrp = ++iItem;
+				}
+			}
+		}
+		return PSPBaseDlg::OnRefresh();
+	}
+
+	INT_PTR DlgProc(UINT uMsg, WPARAM wParam, LPARAM lParam) override
+	{
+		LVHITTESTINFO hi;
+
+		switch (uMsg) {
+		case WM_CTLCOLORSTATIC:
+		case WM_CTLCOLORDLG:
+			if (IsAeroMode())
+				return (INT_PTR)GetStockBrush(WHITE_BRUSH);
 			break;
 
-		// handle notification messages from the list control
-		case LIST_PROFILE:
-			pList = (LPLISTCTRL)GetUserData(((LPNMHDR)lParam)->hwndFrom);
-
-			switch (((LPNMHDR)lParam)->code) {
-			case NM_RCLICK:
-				{
-					HMENU hMenu = CreatePopupMenu();
-					MCONTACT hContact;
-					LPLCITEM pItem;
-					POINT pt;
-
-					if (!hMenu)
-						return 1;
-					PSGetContact(hDlg, hContact);
-					GetCursorPos(&pt);
-					hi.pt = pt;
-					ScreenToClient(((LPNMHDR)lParam)->hwndFrom, &hi.pt);
-					ListView_SubItemHitTest(((LPNMHDR)lParam)->hwndFrom, &hi);
-					pItem = ProfileList_GetItemData(((LPNMHDR)lParam)->hwndFrom, hi.iItem);
-
-					// insert menuitems
-					MENUITEMINFO mii = { 0 };					
-					mii.cbSize = sizeof(mii);
-					mii.fMask = MIIM_ID|MIIM_STRING;
-					// insert "Add" Menuitem
-					mii.wID = BTN_ADD_intEREST;
-					mii.dwTypeData = TranslateT("Add interest");
-					InsertMenuItem(hMenu, 0, TRUE, &mii);
-					mii.wID = BTN_ADD_AFFLIATION;
-					mii.dwTypeData = TranslateT("Add affiliation");
-					InsertMenuItem(hMenu, 1, TRUE, &mii);
-					mii.wID = BTN_ADD_PAST;
-					mii.dwTypeData = TranslateT("Add past");
-					InsertMenuItem(hMenu, 2, TRUE, &mii);
-
-					if (hi.iItem != -1 && PtrIsValid(pItem) && !(hContact && (pItem->wFlags & CTRLF_HASPROTO))) {
-						// insert separator
-						mii.fMask = MIIM_FTYPE;
-						mii.fType = MFT_SEPARATOR;
-						InsertMenuItem(hMenu, 3, TRUE, &mii);
-						// insert "Delete" Menuitem
-						mii.fMask = MIIM_ID | MIIM_STRING;
-						mii.wID = BTN_EDIT_CAT;
-						mii.dwTypeData = TranslateT("Edit category");
-						InsertMenuItem(hMenu, 4, TRUE, &mii);
-						mii.wID = BTN_EDIT_VAL;
-						mii.dwTypeData = TranslateT("Edit value");
-						InsertMenuItem(hMenu, 5, TRUE, &mii);
-						mii.fMask = MIIM_FTYPE;
-						mii.fType = MFT_SEPARATOR;
-						InsertMenuItem(hMenu, 6, TRUE, &mii);
-						// insert "Delete" Menuitem
-						mii.fMask = MIIM_ID | MIIM_STRING;
-						mii.wID = BTN_DEL;
-						mii.dwTypeData = TranslateT("Delete");
-						InsertMenuItem(hMenu, 7, TRUE, &mii);
-					}
-					TrackPopupMenu(hMenu, 0, pt.x, pt.y, 0, hDlg, nullptr);
-					DestroyMenu(hMenu);
+		case WM_NOTIFY:
+			switch (((LPNMHDR)lParam)->idFrom) {
+			case 0:
+				// some account data may have changed so reread database
+				switch (((LPNMHDR)lParam)->code) {
+				case PSN_KILLACTIVE: // user swiches to another propertysheetpage
+					ProfileList_EndLabelEdit(pList, TRUE);
+					break;
 				}
-				return 0;
-
-			case LVN_GETDISPINFO:
-				if (pList->labelEdit.iTopIndex != ListView_GetTopIndex(hList))
-					ProfileList_EndLabelEdit(((LPNMHDR)lParam)->hwndFrom, FALSE);
 				break;
 
-			case NM_CUSTOMDRAW:
-				{
-					LPNMLVCUSTOMDRAW cd = (LPNMLVCUSTOMDRAW)lParam;
-					LPLCITEM pItem = (LPLCITEM)cd->nmcd.lItemlParam;
-					RECT rc;
+			// handle notification messages from the list control
+			case LIST_PROFILE:
+				switch (((LPNMHDR)lParam)->code) {
+				case NM_RCLICK:
+					{
+						HMENU hMenu = CreatePopupMenu();
+						if (!hMenu)
+							return 1;
 
-					switch (cd->nmcd.dwDrawStage) {
-					case CDDS_PREPAINT:
-						SetWindowLongPtr(hDlg, DWLP_MSGRESULT, CDRF_NOTIFYITEMDRAW);
-						return TRUE;
+						POINT pt;
+						GetCursorPos(&pt);
+						hi.pt = pt;
+						ScreenToClient(((LPNMHDR)lParam)->hwndFrom, &hi.pt);
+						ListView_SubItemHitTest(((LPNMHDR)lParam)->hwndFrom, &hi);
+						LPLCITEM pItem = ProfileList_GetItemData(((LPNMHDR)lParam)->hwndFrom, hi.iItem);
 
-					case CDDS_ITEMPREPAINT:
-						ListView_GetItemRect(cd->nmcd.hdr.hwndFrom, cd->nmcd.dwItemSpec, &rc, LVIR_BOUNDS);
-						if (!PtrIsValid(pItem)) {
-							HFONT hBold, hFont;
-							wchar_t szText[MAX_PATH];
+						// insert menuitems
+						MENUITEMINFO mii = { 0 };					
+						mii.cbSize = sizeof(mii);
+						mii.fMask = MIIM_ID|MIIM_STRING;
+						// insert "Add" Menuitem
+						mii.wID = BTN_ADD_intEREST;
+						mii.dwTypeData = TranslateT("Add interest");
+						InsertMenuItem(hMenu, 0, TRUE, &mii);
+						mii.wID = BTN_ADD_AFFLIATION;
+						mii.dwTypeData = TranslateT("Add affiliation");
+						InsertMenuItem(hMenu, 1, TRUE, &mii);
+						mii.wID = BTN_ADD_PAST;
+						mii.dwTypeData = TranslateT("Add past");
+						InsertMenuItem(hMenu, 2, TRUE, &mii);
 
-							PSGetBoldFont(hDlg, hBold);
-							hFont = (HFONT)SelectObject(cd->nmcd.hdc, hBold);
-							SetTextColor(cd->nmcd.hdc, GetSysColor(COLOR_3DSHADOW));
-							ProfileList_GetItemText(cd->nmcd.hdr.hwndFrom, cd->nmcd.dwItemSpec, 0, szText, MAX_PATH);
-							rc.left += 6;
-							DrawText(cd->nmcd.hdc, TranslateW(szText), -1, &rc, DT_NOCLIP | DT_NOPREFIX | DT_SINGLELINE | DT_VCENTER);
+						if (hi.iItem != -1 && PtrIsValid(pItem) && !(m_hContact && (pItem->wFlags & CTRLF_HASPROTO))) {
+							// insert separator
+							mii.fMask = MIIM_FTYPE;
+							mii.fType = MFT_SEPARATOR;
+							InsertMenuItem(hMenu, 3, TRUE, &mii);
+							// insert "Delete" Menuitem
+							mii.fMask = MIIM_ID | MIIM_STRING;
+							mii.wID = BTN_EDIT_CAT;
+							mii.dwTypeData = TranslateT("Edit category");
+							InsertMenuItem(hMenu, 4, TRUE, &mii);
+							mii.wID = BTN_EDIT_VAL;
+							mii.dwTypeData = TranslateT("Edit value");
+							InsertMenuItem(hMenu, 5, TRUE, &mii);
+							mii.fMask = MIIM_FTYPE;
+							mii.fType = MFT_SEPARATOR;
+							InsertMenuItem(hMenu, 6, TRUE, &mii);
+							// insert "Delete" Menuitem
+							mii.fMask = MIIM_ID | MIIM_STRING;
+							mii.wID = BTN_DEL;
+							mii.dwTypeData = TranslateT("Delete");
+							InsertMenuItem(hMenu, 7, TRUE, &mii);
+						}
+						TrackPopupMenu(hMenu, 0, pt.x, pt.y, 0, m_hwnd, nullptr);
+						DestroyMenu(hMenu);
+					}
+					return 0;
 
-							rc.bottom -= 2;
-							rc.top = rc.bottom - 1;
-							rc.left -= 6;
-							DrawEdge(cd->nmcd.hdc, &rc, BDR_SUNKENOUTER, BF_RECT);
+				case LVN_GETDISPINFO:
+					if (pList->labelEdit.iTopIndex != m_list.GetTopIndex())
+						ProfileList_EndLabelEdit(pList, FALSE);
+					break;
 
-							SelectObject(cd->nmcd.hdc, hFont);
-							SetWindowLongPtr(hDlg, DWLP_MSGRESULT, CDRF_SKIPDEFAULT);
+				case NM_CUSTOMDRAW:
+					{
+						LPNMLVCUSTOMDRAW cd = (LPNMLVCUSTOMDRAW)lParam;
+						LPLCITEM pItem = (LPLCITEM)cd->nmcd.lItemlParam;
+						RECT rc;
+
+						switch (cd->nmcd.dwDrawStage) {
+						case CDDS_PREPAINT:
+							SetWindowLongPtr(m_hwnd, DWLP_MSGRESULT, CDRF_NOTIFYITEMDRAW);
 							return TRUE;
-						}
-						// draw selected item
-						if ((cd->nmcd.uItemState & CDIS_SELECTED) || (pList->labelEdit.iItem == (int)cd->nmcd.dwItemSpec)) {
-							SetTextColor(cd->nmcd.hdc, GetSysColor(COLOR_HIGHLIGHTTEXT));
-							FillRect(cd->nmcd.hdc, &rc, GetSysColorBrush(COLOR_HIGHLIGHT));
-						}
-						// draw background of unselected item
-						else {
-							SetTextColor(cd->nmcd.hdc,
-								(pItem->wFlags & CTRLF_CHANGED)
-								? clrChanged : (pItem->wFlags & CTRLF_HASMETA)
-								? clrMeta : ((pItem->wFlags & (CTRLF_HASCUSTOM)) && (pItem->wFlags & CTRLF_HASPROTO))
-								? clrBoth : (pItem->wFlags & CTRLF_HASCUSTOM)
-								? clrCustom : clrNormal);
-							FillRect(cd->nmcd.hdc, &rc, GetSysColorBrush(COLOR_WINDOW));
-						}
-						SetWindowLongPtr(hDlg, DWLP_MSGRESULT, CDRF_NEWFONT | CDRF_NOTIFYSUBITEMDRAW);
-						return TRUE;
 
-					case CDDS_SUBITEM | CDDS_ITEMPREPAINT:
-						{
-//							HFONT hoFont = (HFONT)SelectObject(cd->nmcd.hdc, pList->hFont);
+						case CDDS_ITEMPREPAINT:
+							ListView_GetItemRect(cd->nmcd.hdr.hwndFrom, cd->nmcd.dwItemSpec, &rc, LVIR_BOUNDS);
+							if (!PtrIsValid(pItem)) {
+								HFONT hFont = (HFONT)SelectObject(cd->nmcd.hdc, GetBoldFont());
+								SetTextColor(cd->nmcd.hdc, GetSysColor(COLOR_3DSHADOW));
 
+								wchar_t szText[MAX_PATH];
+								ProfileList_GetItemText(cd->nmcd.hdr.hwndFrom, cd->nmcd.dwItemSpec, 0, szText, MAX_PATH);
+								rc.left += 6;
+								DrawText(cd->nmcd.hdc, TranslateW(szText), -1, &rc, DT_NOCLIP | DT_NOPREFIX | DT_SINGLELINE | DT_VCENTER);
+
+								rc.bottom -= 2;
+								rc.top = rc.bottom - 1;
+								rc.left -= 6;
+								DrawEdge(cd->nmcd.hdc, &rc, BDR_SUNKENOUTER, BF_RECT);
+
+								SelectObject(cd->nmcd.hdc, hFont);
+								SetWindowLongPtr(m_hwnd, DWLP_MSGRESULT, CDRF_SKIPDEFAULT);
+								return TRUE;
+							}
+							// draw selected item
+							if ((cd->nmcd.uItemState & CDIS_SELECTED) || (pList->labelEdit.iItem == (int)cd->nmcd.dwItemSpec)) {
+								SetTextColor(cd->nmcd.hdc, GetSysColor(COLOR_HIGHLIGHTTEXT));
+								FillRect(cd->nmcd.hdc, &rc, GetSysColorBrush(COLOR_HIGHLIGHT));
+							}
+							// draw background of unselected item
+							else {
+								SetTextColor(cd->nmcd.hdc,
+									(pItem->wFlags & CTRLF_CHANGED)
+									? clrChanged : (pItem->wFlags & CTRLF_HASMETA)
+									? clrMeta : ((pItem->wFlags & (CTRLF_HASCUSTOM)) && (pItem->wFlags & CTRLF_HASPROTO))
+									? clrBoth : (pItem->wFlags & CTRLF_HASCUSTOM)
+									? clrCustom : clrNormal);
+								FillRect(cd->nmcd.hdc, &rc, GetSysColorBrush(COLOR_WINDOW));
+							}
+							SetWindowLongPtr(m_hwnd, DWLP_MSGRESULT, CDRF_NEWFONT | CDRF_NOTIFYSUBITEMDRAW);
+							return TRUE;
+
+						case CDDS_SUBITEM | CDDS_ITEMPREPAINT:
 							ListView_GetSubItemRect(cd->nmcd.hdr.hwndFrom, cd->nmcd.dwItemSpec, cd->iSubItem, LVIR_BOUNDS, &rc);
 							if (cd->iSubItem == 0) {
 								RECT rc2;
@@ -1383,47 +1324,54 @@ INT_PTR CALLBACK PSPProcContactProfile(HWND hDlg, UINT uMsg, WPARAM wParam, LPAR
 								? pItem->idstrList[pItem->iListItem].ptszTranslated
 								: TranslateT("<empty>"),
 								-1, &rc, DT_END_ELLIPSIS | DT_NOCLIP | DT_NOPREFIX | DT_SINGLELINE | DT_VCENTER);
-							SetWindowLongPtr(hDlg, DWLP_MSGRESULT, CDRF_SKIPDEFAULT);
+							SetWindowLongPtr(m_hwnd, DWLP_MSGRESULT, CDRF_SKIPDEFAULT);
 							return TRUE;
-						}
-					} /* switch (cd->nmcd.dwDrawStage) */
-					break;
-				} /* case NM_CUSTOMDRAW: */
-			} /* (((LPNMHDR)lParam)->code) */
-			break;
-		}
-		break; /* case WM_NOTIFY: */
+						} /* switch (cd->nmcd.dwDrawStage) */
+						break;
+					} /* case NM_CUSTOMDRAW: */
+				} /* (((LPNMHDR)lParam)->code) */
+				break;
+			}
+			break; /* case WM_NOTIFY: */
 
-	case WM_COMMAND:
-		switch (LOWORD(wParam)) {
-		case BTN_ADD_intEREST:
-			return ProfileList_AddNewItem(hDlg, (LPLISTCTRL)GetUserData(hList), &pFmt[2]);
-		case BTN_ADD_AFFLIATION:
-			return ProfileList_AddNewItem(hDlg, (LPLISTCTRL)GetUserData(hList), &pFmt[1]);
-		case BTN_ADD_PAST:
-			return ProfileList_AddNewItem(hDlg, (LPLISTCTRL)GetUserData(hList), &pFmt[0]);
-		case BTN_EDIT_CAT:
-			ProfileList_BeginLabelEdit(hList, ListView_GetSelectionMark(hList), 0);
-			break;
-		case BTN_EDIT_VAL:
-			ProfileList_BeginLabelEdit(hList, ListView_GetSelectionMark(hList), 1);
-			break;
-		case BTN_DEL:
-			if (IDYES == MsgBox(hDlg, MB_YESNO | MB_ICON_QUESTION, LPGENW("Question"), LPGENW("Delete an entry"), LPGENW("Do you really want to delete this entry?"))) {
-				int iItem = ListView_GetSelectionMark(hList);
-				pList = (LPLISTCTRL)GetUserData(hList);
+		case WM_COMMAND:
+			switch (LOWORD(wParam)) {
+			case BTN_ADD_intEREST:
+				return ProfileList_AddNewItem(&pFmt[2]);
+			case BTN_ADD_AFFLIATION:
+				return ProfileList_AddNewItem(&pFmt[1]);
+			case BTN_ADD_PAST:
+				return ProfileList_AddNewItem(&pFmt[0]);
+			case BTN_EDIT_CAT:
+				ProfileList_BeginLabelEdit(pList, m_list.GetSelectionMark(), 0);
+				break;
+			case BTN_EDIT_VAL:
+				ProfileList_BeginLabelEdit(pList, m_list.GetSelectionMark(), 1);
+				break;
+			case BTN_DEL:
+				if (IDYES == MsgBox(m_hwnd, MB_YESNO | MB_ICON_QUESTION, LPGENW("Question"), LPGENW("Delete an entry"), LPGENW("Do you really want to delete this entry?"))) {
+					int iItem = m_list.GetSelectionMark();
+					ProfileList_DeleteItem(m_list.GetHwnd(), iItem);
 
-				ProfileList_DeleteItem(hList, iItem);
-				if (PtrIsValid(pList))
 					pList->wFlags |= CTRLF_CHANGED;
-				SendMessage(GetParent(hDlg), PSM_CHANGED, NULL, NULL);
-				// check if to delete any devider
-				if (!ProfileList_GetItemData(hList, iItem--) && !ProfileList_GetItemData(hList, iItem))
-					ListView_DeleteItem(hList, iItem);
+					SendMessage(GetParent(m_hwnd), PSM_CHANGED, NULL, NULL);
+					// check if to delete any devider
+					if (!ProfileList_GetItemData(m_list.GetHwnd(), iItem--) && !ProfileList_GetItemData(m_list.GetHwnd(), iItem))
+						m_list.DeleteItem(iItem);
+				}
+				break;
 			}
 			break;
 		}
-		break;
+		return FALSE;
 	}
-	return FALSE;
+};
+
+void InitProfileDlg(WPARAM wParam, USERINFOPAGE &uip)
+{
+	uip.position = 0x8000007;
+	uip.pDialog = new PSPContactProfileDlg();
+	uip.dwInitParam = ICONINDEX(IDI_TREE_PROFILE);
+	uip.szTitle.w = LPGENW("About") L"\\" LPGENW("Profile");
+	g_plugin.addUserInfo(wParam, &uip);
 }

@@ -76,10 +76,10 @@ CJabberProto::CJabberProto(const char *aProtoName, const wchar_t *aUserName) :
 	m_uEnabledFeatCapsDynamic(0),
 	m_StrmMgmt(this),
 
-	m_bAcceptHttpAuth(this, "m_bAcceptHttpAuth", true),
+	m_bAcceptHttpAuth(this, "AcceptHttpAuth", true),
 	m_bAcceptNotes(this, "AcceptNotes", true),
 	m_bAllowTimeReplies(this, "AllowTimeReplies", true),
-	m_bAllowVersionRequests(this, "m_bAllowVersionRequests", true),
+	m_bAllowVersionRequests(this, "AllowVersionRequests", true),
 	m_bAutoAcceptAuthorization(this, "AutoAcceptAuthorization", false),
 	m_bAutoAcceptMUC(this, "AutoAcceptMUC", false),
 	m_bAutoAdd(this, "AutoAdd", true),
@@ -89,7 +89,6 @@ CJabberProto::CJabberProto(const char *aProtoName, const wchar_t *aUserName) :
 	m_bAutosaveNotes(this, "AutosaveNotes", false),
 	m_bBsDirect(this, "BsDirect", true),
 	m_bBsDirectManual(this, "BsDirectManual", false),
-	m_bBsOnlyIBB(this, "BsOnlyIBB", false),
 	m_bBsProxyManual(this, "BsProxyManual", false),
 	m_bDisable3920auth(this, "Disable3920auth", false),
 	m_bDisableFrame(this, "DisableFrame", true),
@@ -203,8 +202,6 @@ CJabberProto::CJabberProto(const char *aProtoName, const wchar_t *aUserName) :
 	AddDefaultCaps();
 
 	IconsInit();
-	InitPopups();
-	GlobalMenuInit();
 
 	m_pepServices.insert(new CPepMood(this));
 	m_pepServices.insert(new CPepActivity(this));
@@ -294,6 +291,8 @@ void CJabberProto::OnModulesLoaded()
 	m_pepServices.InitGui();
 
 	InitInfoFrame();
+	InitPopups();
+	GlobalMenuInit();
 
 	StatusIconData sid = {};
 	sid.szModule = m_szModuleName;
@@ -951,10 +950,7 @@ int CJabberProto::SendMsg(MCONTACT hContact, int unused_unknown, const char *psz
 
 	m << XATTR("to", szClientJid);
 
-	bool bSendReceipt = (m_bMsgAck || getByte(hContact, "MsgAck", false));
-	if (bSendReceipt && jcb && !(jcb & (JABBER_CAPS_CHAT_MARKERS | JABBER_CAPS_MESSAGE_RECEIPTS)))
-		bSendReceipt = false;
-
+	bool bSendReceipt = IsSendAck(hContact) && (jcb & (JABBER_CAPS_CHAT_MARKERS | JABBER_CAPS_MESSAGE_RECEIPTS));
 	if (bSendReceipt) {
 		m << XCHILDNS("request", JABBER_FEAT_MESSAGE_RECEIPTS);
 		m << XCHILDNS("markable", JABBER_FEAT_CHAT_MARKERS);

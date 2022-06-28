@@ -29,6 +29,63 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "jabber_caps.h"
 #include "jabber_privacy.h"
 
+void CJabberProto::OnIqResultServerItemsInfo(const TiXmlElement *iqNode, CJabberIqInfo *pInfo)
+{
+	const char *from = XmlGetAttr(iqNode, "from");
+	if (from == nullptr || pInfo->GetIqType() != JABBER_IQ_TYPE_RESULT)
+		return;
+
+	int hul_ver = -1;
+	auto query = XmlGetChildByTag(iqNode, "query", "xmlns", JABBER_FEAT_DISCO_INFO);
+	for (auto *feature : TiXmlFilter(query, "feature")) {
+		auto *var = XmlGetAttr(feature, "var");
+
+		// HTTP Upload
+		if (!mir_strcmp(var, JABBER_FEAT_UPLOAD0) && hul_ver < 0)
+			hul_ver = 0;
+		if (!mir_strcmp(var, JABBER_FEAT_UPLOAD))
+			hul_ver = 1;
+		
+		// SOCKS5 Proxy
+		if (!mir_strcmp(var, JABBER_FEAT_BYTESTREAMS)) {
+			m_bBsProxyManual = true;
+			setString("BsProxyServer", from);
+		}
+	}
+
+	if (hul_ver >= 0) {
+		m_bUseHttpUpload = true;
+		setString("HttpUpload", from);
+		setByte("HttpUploadVer", hul_ver);
+
+		for (auto *x : TiXmlFilter(query, "x")) {
+			if (mir_strcmp(XmlGetAttr(x, "type"), "result") || mir_strcmp(XmlGetAttr(x, "xmlns"), JABBER_FEAT_DATA_FORMS))
+				continue;
+			
+			if (auto *field = XmlGetChildByTag(x, "field", "var", "FORM_TYPE"))
+				if (!mir_strcmp(XmlGetChildText(field, "value"), hul_ver ? JABBER_FEAT_UPLOAD : JABBER_FEAT_UPLOAD0))
+					if (auto *sfield = XmlGetChildByTag(x, "field", "var", "max-file-size"))
+						setDword("HttpUploadMaxSize", XmlGetChildInt(sfield, "value"));
+		}
+	}
+}
+
+void CJabberProto::OnIqResultServerDiscoItems(const TiXmlElement *iqNode, CJabberIqInfo *pInfo)
+{
+	if (iqNode == nullptr)
+		return;
+
+	if (pInfo->GetIqType() == JABBER_IQ_TYPE_RESULT) {
+		for (auto *item : TiXmlFilter(XmlGetChildByTag(iqNode, "query", "xmlns", JABBER_FEAT_DISCO_ITEMS), "item")) {
+			const char *szJid = XmlGetAttr(item, "jid");
+
+			XmlNodeIq iq(AddIQ(&CJabberProto::OnIqResultServerItemsInfo, JABBER_IQ_TYPE_GET));
+			iq << XATTR("from", m_ThreadInfo->fullJID) << XATTR("to", szJid) << XQUERY(JABBER_FEAT_DISCO_INFO);
+			m_ThreadInfo->send(iq);
+		}
+	}
+}
+
 void CJabberProto::OnIqResultServerDiscoInfo(const TiXmlElement *iqNode, CJabberIqInfo *pInfo)
 {
 	if (iqNode == nullptr)
@@ -51,8 +108,14 @@ void CJabberProto::OnIqResultServerDiscoInfo(const TiXmlElement *iqNode, CJabber
 		if (!mir_strcmp(tmp.category, "pubsub") && !mir_strcmp(tmp.type, "pep")) {
 			m_bPepSupported = true;
 
-			if (m_bUseOMEMO) // publish ndes, precreation is not required
-				OmemoPublishNodes();
+			if (m_bUseOMEMO) {
+				XmlNodeIq iq(AddIQ(&CJabberProto::OnIqResultGetOmemodevicelist, JABBER_IQ_TYPE_GET));
+				iq << XATTR("from", m_ThreadInfo->fullJID);
+				iq << XCHILDNS("pubsub", "http://jabber.org/protocol/pubsub")
+					<< XCHILD("items") << XATTR("node", JABBER_FEAT_OMEMO ".devicelist");
+
+				m_ThreadInfo->send(iq);
+			}
 
 			EnableMenuItems(true);
 			RebuildInfoFrame();
@@ -88,6 +151,15 @@ void CJabberProto::OnIqResultServerDiscoInfo(const TiXmlElement *iqNode, CJabber
 		m_ThreadInfo->jabberServerCaps |= jcb;
 
 	OnProcessLoginRq(m_ThreadInfo, JABBER_LOGIN_SERVERINFO);
+
+	// http upload autodetect
+	if ((char)getByte("HttpUploadVer", -1) == -1) {
+		setByte("HttpUploadVer", 0); // not to call autodetect twice
+
+		XmlNodeIq iq(AddIQ(&CJabberProto::OnIqResultServerDiscoItems, JABBER_IQ_TYPE_GET));
+		iq << XATTR("from", m_ThreadInfo->fullJID) << XATTR("to", m_ThreadInfo->conn.server) << XCHILDNS("query", JABBER_FEAT_DISCO_ITEMS);
+		m_ThreadInfo->send(iq);
+	}
 }
 
 void CJabberProto::OnIqResultNestedRosterGroups(const TiXmlElement *iqNode, CJabberIqInfo *pInfo)
@@ -1072,50 +1144,61 @@ void CJabberProto::OnIqResultSetVcard(const TiXmlElement *iqNode, CJabberIqInfo*
 
 void CJabberProto::OnIqResultGetOmemodevicelist(const TiXmlElement* iqNode, CJabberIqInfo*)
 {
-	if (const char *from = XmlGetAttr(iqNode, "from"))
-		if (auto *pubsubNode = XmlGetChildByTag(iqNode, "pubsub", "xmlns", JABBER_FEAT_PUBSUB))
-			if (auto *itemsNode = XmlGetChildByTag(pubsubNode, "items", "node", JABBER_FEAT_OMEMO ".devicelist"))
-				OmemoHandleDeviceList(from, itemsNode);
+	const char *from = XmlGetAttr(iqNode, "from"); //replies for our jid don't contain "from"
+	bool res = false;
+	if (auto *pubsubNode = XmlGetChildByTag(iqNode, "pubsub", "xmlns", JABBER_FEAT_PUBSUB))
+		if (auto *itemsNode = XmlGetChildByTag(pubsubNode, "items", "node", JABBER_FEAT_OMEMO ".devicelist"))
+			res = OmemoHandleDeviceList(from, itemsNode);
+
+	if (!from && !res) {
+		for (int i = 0;; i++) {
+			CMStringA szSetting(FORMAT, "%s%d", omemo::DevicePrefix, i);
+			if (!getDword(szSetting, 0))
+				break;
+
+			delSetting(szSetting);
+		}
+
+		OmemoAnnounceDevice(false); //Publish own device if we can't retrieve up to date list 
+		OmemoSendBundle();
+	}
 }
 
 void CJabberProto::OnIqResultSetSearch(const TiXmlElement *iqNode, CJabberIqInfo*)
 {
-	const TiXmlElement *queryNode;
-	const char *type;
-	int id;
-
 	debugLogA("<iq/> iqIdGetSearch");
-	if ((type = XmlGetAttr(iqNode, "type")) == nullptr) return;
-	if ((id = JabberGetPacketID(iqNode)) == -1) return;
+
+	const char *type = XmlGetAttr(iqNode, "type");
+	int id = JabberGetPacketID(iqNode);
+	if (type == nullptr || id == -1)
+		return;
 
 	if (!mir_strcmp(type, "result")) {
-		if ((queryNode = XmlFirstChild(iqNode, "query")) == nullptr)
-			return;
+		if (auto *queryNode = XmlFirstChild(iqNode, "query")) {
+			PROTOSEARCHRESULT psr = {};
+			psr.cbSize = sizeof(psr);
+			for (auto *itemNode : TiXmlFilter(queryNode, "item")) {
+				if (auto *jid = XmlGetAttr(itemNode, "jid")) {
+					psr.id.w = mir_utf8decodeW(jid);
+					debugLogA("Result jid = %s", jid);
+					if (auto *p = XmlGetChildText(itemNode, "nick"))
+						psr.nick.w = mir_utf8decodeW(p);
+					if (auto *p = XmlGetChildText(itemNode, "first"))
+						psr.firstName.w = mir_utf8decodeW(p);
+					if (auto *p = XmlGetChildText(itemNode, "last"))
+						psr.lastName.w = mir_utf8decodeW(p);
+					if (auto *p = XmlGetChildText(itemNode, "email"))
+						psr.email.w = mir_utf8decodeW(p);
+					ProtoBroadcastAck(0, ACKTYPE_SEARCH, ACKRESULT_DATA, (HANDLE)id, (LPARAM)&psr);
 
-		PROTOSEARCHRESULT psr = {};
-		psr.cbSize = sizeof(psr);
-		for (auto *itemNode : TiXmlFilter(queryNode, "item")) {
-			if (auto *jid = XmlGetAttr(itemNode, "jid")) {
-				psr.id.w = mir_utf8decodeW(jid);
-				debugLogA("Result jid = %s", jid);
-				if (auto *p = XmlGetChildText(itemNode, "nick"))
-					psr.nick.w = mir_utf8decodeW(p);
-				if (auto *p = XmlGetChildText(itemNode, "first"))
-					psr.firstName.w = mir_utf8decodeW(p);
-				if (auto *p = XmlGetChildText(itemNode, "last"))
-					psr.lastName.w = mir_utf8decodeW(p);
-				if (auto *p = XmlGetChildText(itemNode, "email"))
-					psr.email.w = mir_utf8decodeW(p);
-				ProtoBroadcastAck(0, ACKTYPE_SEARCH, ACKRESULT_DATA, (HANDLE)id, (LPARAM)&psr);
-
-				replaceStrW(psr.id.w, 0);
-				replaceStrW(psr.nick.w, 0);
-				replaceStrW(psr.firstName.w, 0);
-				replaceStrW(psr.lastName.w, 0);
-				replaceStrW(psr.email.w, 0);
+					replaceStrW(psr.id.w, 0);
+					replaceStrW(psr.nick.w, 0);
+					replaceStrW(psr.firstName.w, 0);
+					replaceStrW(psr.lastName.w, 0);
+					replaceStrW(psr.email.w, 0);
+				}
 			}
 		}
-
 		ProtoBroadcastAck(0, ACKTYPE_SEARCH, ACKRESULT_SUCCESS, (HANDLE)id);
 	}
 	else if (!mir_strcmp(type, "error"))
@@ -1124,58 +1207,54 @@ void CJabberProto::OnIqResultSetSearch(const TiXmlElement *iqNode, CJabberIqInfo
 
 void CJabberProto::OnIqResultExtSearch(const TiXmlElement *iqNode, CJabberIqInfo*)
 {
-	const TiXmlElement *queryNode;
-
 	debugLogA("<iq/> iqIdGetExtSearch");
-	const char *type = XmlGetAttr(iqNode, "type");
-	if (type == nullptr)
-		return;
 
+	const char *type = XmlGetAttr(iqNode, "type");
 	int id = JabberGetPacketID(iqNode);
-	if (id == -1)
+	if (type == nullptr || id == -1)
 		return;
 
 	if (!mir_strcmp(type, "result")) {
-		if ((queryNode = XmlFirstChild(iqNode, "query")) == nullptr) return;
-		if ((queryNode = XmlFirstChild(queryNode, "x")) == nullptr) return;
-		for (auto *itemNode : TiXmlFilter(queryNode, "item")) {
-			PROTOSEARCHRESULT  psr = { 0 };
-			psr.cbSize = sizeof(psr);
-			psr.flags = PSR_UNICODE;
+		if (auto *queryNode = XmlFirstChild(iqNode, "query"))
+			if (queryNode = XmlFirstChild(queryNode, "x"))
+				for (auto *itemNode : TiXmlFilter(queryNode, "item")) {
+					PROTOSEARCHRESULT psr = {};
+					psr.cbSize = sizeof(psr);
+					psr.flags = PSR_UNICODE;
 
-			for (auto *fieldNode : TiXmlFilter(itemNode, "field")) {
-				const char *fieldName = XmlGetAttr(fieldNode, "var");
-				if (fieldName == nullptr)
-					continue;
+					for (auto *fieldNode : TiXmlFilter(itemNode, "field")) {
+						const char *fieldName = XmlGetAttr(fieldNode, "var");
+						if (fieldName == nullptr)
+							continue;
 
-				auto *n = XmlFirstChild(fieldNode, "value");
-				if (n == nullptr)
-					continue;
+						auto *n = XmlFirstChild(fieldNode, "value");
+						if (n == nullptr)
+							continue;
 
-				if (!mir_strcmp(fieldName, "jid")) {
-					psr.id.w = mir_utf8decodeW(n->GetText());
-					debugLogW(L"Result jid = %s", psr.id.w);
+						if (!mir_strcmp(fieldName, "jid")) {
+							psr.id.w = mir_utf8decodeW(n->GetText());
+							debugLogW(L"Result jid = %s", psr.id.w);
+						}
+						else if (!mir_strcmp(fieldName, "nickname"))
+							psr.nick.w = mir_utf8decodeW(n->GetText());
+						else if (!mir_strcmp(fieldName, "fn"))
+							psr.firstName.w = mir_utf8decodeW(n->GetText());
+						else if (!mir_strcmp(fieldName, "given"))
+							psr.firstName.w = mir_utf8decodeW(n->GetText());
+						else if (!mir_strcmp(fieldName, "family"))
+							psr.lastName.w = mir_utf8decodeW(n->GetText());
+						else if (!mir_strcmp(fieldName, "email"))
+							psr.email.w = mir_utf8decodeW(n->GetText());
+					}
+
+					ProtoBroadcastAck(0, ACKTYPE_SEARCH, ACKRESULT_DATA, (HANDLE)id, (LPARAM)&psr);
+
+					replaceStrW(psr.id.w, 0);
+					replaceStrW(psr.nick.w, 0);
+					replaceStrW(psr.firstName.w, 0);
+					replaceStrW(psr.lastName.w, 0);
+					replaceStrW(psr.email.w, 0);
 				}
-				else if (!mir_strcmp(fieldName, "nickname"))
-					psr.nick.w = mir_utf8decodeW(n->GetText());
-				else if (!mir_strcmp(fieldName, "fn"))
-					psr.firstName.w = mir_utf8decodeW(n->GetText());
-				else if (!mir_strcmp(fieldName, "given"))
-					psr.firstName.w = mir_utf8decodeW(n->GetText());
-				else if (!mir_strcmp(fieldName, "family"))
-					psr.lastName.w = mir_utf8decodeW(n->GetText());
-				else if (!mir_strcmp(fieldName, "email"))
-					psr.email.w = mir_utf8decodeW(n->GetText());
-			}
-
-			ProtoBroadcastAck(0, ACKTYPE_SEARCH, ACKRESULT_DATA, (HANDLE)id, (LPARAM)&psr);
-
-			replaceStrW(psr.id.w, 0);
-			replaceStrW(psr.nick.w, 0);
-			replaceStrW(psr.firstName.w, 0);
-			replaceStrW(psr.lastName.w, 0);
-			replaceStrW(psr.email.w, 0);
-		}
 
 		ProtoBroadcastAck(0, ACKTYPE_SEARCH, ACKRESULT_SUCCESS, (HANDLE)id);
 	}
@@ -1204,9 +1283,6 @@ void CJabberProto::OnIqResultGetVCardAvatar(const TiXmlElement *iqNode, CJabberI
 	debugLogA("<iq/> OnIqResultGetVCardAvatar");
 
 	const char *from = XmlGetAttr(iqNode, "from");
-	if (from == nullptr)
-		return;
-
 	MCONTACT hContact = HContactFromJID(from);
 	if (hContact == 0)
 		return;
@@ -1235,9 +1311,6 @@ void CJabberProto::OnIqResultGetServerAvatar(const TiXmlElement *iqNode, CJabber
 	debugLogA("<iq/> iqIdResultGetServerAvatar");
 
 	const char *from = XmlGetAttr(iqNode, "from");
-	if (from == nullptr)
-		return;
-
 	MCONTACT hContact = HContactFromJID(from);
 	if (hContact == 0)
 		return;

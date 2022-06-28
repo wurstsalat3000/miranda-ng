@@ -21,6 +21,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "../stdafx.h"
+#include "diatheme.h"
 
 static mir_cs csDialogs;
 
@@ -45,10 +46,11 @@ static int CompareTimerId(const CTimer *t1, const CTimer *t2)
 	return t1->GetEventId() - t2->GetEventId();
 }
 
-CDlgBase::CDlgBase(CMPluginBase &pPlug, int idDialog)
-	: m_controls(1, CompareControlId),
+CDlgBase::CDlgBase(CMPluginBase &pPlug, int idDialog) :
+	m_controls(1, CompareControlId),
 	m_timers(1, CompareTimerId),
-	m_pPlugin(pPlug)
+	m_pPlugin(pPlug),
+	m_bFixedSize(!g_bEnableDpiAware)
 {
 	m_idDialog = idDialog;
 	m_autoClose = CLOSE_ON_OK | CLOSE_ON_CANCEL;
@@ -101,13 +103,22 @@ void CDlgBase::Close()
 
 void CDlgBase::Create()
 {
-	CreateDialogParam(GetInst(), MAKEINTRESOURCE(m_idDialog), m_hwndParent, GlobalDlgProc, (LPARAM)this);
+	if (!m_bFixedSize) {
+		mir_ptr<DLGTEMPLATE> pDlgTemplate(LoadThemedDialogTemplate(MAKEINTRESOURCE(m_idDialog), GetInst()));
+		CreateDialogIndirectParam(GetInst(), pDlgTemplate, m_hwndParent, GlobalDlgProc, (LPARAM)this);
+	}
+	else CreateDialogParam(GetInst(), MAKEINTRESOURCE(m_idDialog), m_hwndParent, GlobalDlgProc, (LPARAM)this);
 }
 
 int CDlgBase::DoModal()
 {
 	m_isModal = true;
-	return DialogBoxParam(GetInst(), MAKEINTRESOURCE(m_idDialog), m_hwndParent, GlobalDlgProc, (LPARAM)this);
+	
+	if (m_bFixedSize)
+		return DialogBoxParam(GetInst(), MAKEINTRESOURCE(m_idDialog), m_hwndParent, GlobalDlgProc, (LPARAM)this);
+		
+	mir_ptr<DLGTEMPLATE> pDlgTemplate(LoadThemedDialogTemplate(MAKEINTRESOURCE(m_idDialog), GetInst()));
+	return DialogBoxIndirectParam(GetInst(), pDlgTemplate, m_hwndParent, GlobalDlgProc, (LPARAM)this);
 }
 
 void CDlgBase::EndModal(INT_PTR nResult)
@@ -168,6 +179,18 @@ void CDlgBase::CreateLink(CCtrlData& ctrl, const char *szSetting, wchar_t *szVal
 
 /////////////////////////////////////////////////////////////////////////////////////////
 // virtual methods
+
+int CDlgBase::GlobalDlgResizer(HWND hwnd, LPARAM, UTILRESIZECONTROL *urc)
+{
+	CDlgBase *wnd = CDlgBase::Find(hwnd);
+	return (wnd == nullptr) ? 0 : wnd->Resizer(urc);
+}
+
+void CDlgBase::OnResize()
+{
+	if (m_forceResizable || (GetWindowLongPtr(m_hwnd, GWL_STYLE) & WS_THICKFRAME))
+		Utils_ResizeDialog(m_hwnd, m_pPlugin.getInst(), MAKEINTRESOURCEA(m_idDialog), GlobalDlgResizer);
+}
 
 int CDlgBase::Resizer(UTILRESIZECONTROL*)
 {
@@ -372,8 +395,7 @@ INT_PTR CDlgBase::DlgProc(UINT msg, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_SIZE:
-		if (m_forceResizable || (GetWindowLongPtr(m_hwnd, GWL_STYLE) & WS_THICKFRAME))
-			Utils_ResizeDialog(m_hwnd, m_pPlugin.getInst(), MAKEINTRESOURCEA(m_idDialog), GlobalDlgResizer);
+		OnResize();
 		return TRUE;
 
 	case WM_TIMER:
@@ -428,12 +450,6 @@ INT_PTR CALLBACK CDlgBase::GlobalDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 	else wnd = CDlgBase::Find(hwnd);
 
 	return (wnd == nullptr) ? FALSE : wnd->DlgProc(msg, wParam, lParam);
-}
-
-int CDlgBase::GlobalDlgResizer(HWND hwnd, LPARAM, UTILRESIZECONTROL *urc)
-{
-	CDlgBase *wnd = CDlgBase::Find(hwnd);
-	return (wnd == nullptr) ? 0 : wnd->Resizer(urc);
 }
 
 void CDlgBase::ThemeDialogBackground(BOOL tabbed)

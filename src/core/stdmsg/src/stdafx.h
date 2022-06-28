@@ -117,6 +117,7 @@ public:
 
 	INT_PTR DlgProc(UINT msg, WPARAM wParam, LPARAM lParam) override;
 	int Resizer(UTILRESIZECONTROL *urc) override;
+	void OnResize() override;
 };
 
 extern CTabbedWindow *g_pTabDialog;
@@ -143,9 +144,6 @@ struct GlobalLogSettings : public GlobalLogSettingsBase
 	int iX, iY;
 	int iSplitterX, iSplitterY;
 	bool bTabsEnable, bTabsAtBottom, bTabCloseOnDblClick;
-
-	HFONT MessageAreaFont;
-	COLORREF MessageAreaColor;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////

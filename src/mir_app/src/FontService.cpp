@@ -109,12 +109,6 @@ static void GetDefaultFontSetting(LOGFONT *lf, COLORREF *colour)
 	SystemParametersInfo(SPI_GETICONTITLELOGFONT, sizeof(LOGFONT), lf, FALSE);
 	if (colour)
 		*colour = GetSysColor(COLOR_WINDOWTEXT);
-
-	lf->lfHeight = 10;
-
-	HDC hdc = GetDC(nullptr);
-	lf->lfHeight = -MulDiv(lf->lfHeight, GetDeviceCaps(hdc, LOGPIXELSY), 72);
-	ReleaseDC(nullptr, hdc);
 }
 
 int GetFontSettingFromDB(char *settings_group, char *prefix, LOGFONT *lf, COLORREF *colour, uint32_t flags)

@@ -127,6 +127,13 @@ void CJabberProto::FtInitiate(filetransfer *ft)
 			struct _stat64 st;
 			_wstat64(ft->std.szCurrentFile.w, &st);
 
+			uint32_t maxsize = getDword("HttpUploadMaxSize");
+			if (maxsize && st.st_size > maxsize) {
+				MsgPopup(ft->std.hContact, CMStringW(FORMAT, TranslateT("%s is too large. Maximum size supported by the service is %d KB"),
+					ft->std.szCurrentFile.w, maxsize / 1024), L"HTTP Upload");
+				goto LBL_Error;
+			}
+
 			auto *pwszContentType = ProtoGetAvatarMimeType(ProtoGetAvatarFileFormat(ft->std.szCurrentFile.w));
 			if (pwszContentType == nullptr)
 				pwszContentType = "application/octet-stream";
@@ -168,10 +175,10 @@ void CJabberProto::FtInitiate(filetransfer *ft)
 		jcb = GetResourceCapabilities(ft->pItem->jid);
 	}
 
-	// fix for very smart clients, like gajim
-	if (!m_bBsDirect && !m_bBsProxyManual) {
-		// disable bytestreams
-		jcb &= ~JABBER_CAPS_BYTESTREAMS;
+	if (!m_bBsDirect) {
+		jcb &= ~JABBER_CAPS_OOB;
+		if(!m_bBsProxyManual) // disable bytestreams
+			jcb &= ~JABBER_CAPS_BYTESTREAMS;
 	}
 
 	// if only JABBER_CAPS_SI_FT feature set (without BS or IBB), disable JABBER_CAPS_SI_FT
@@ -408,7 +415,7 @@ void CJabberProto::FtHandleSiRequest(const TiXmlElement *iqNode)
 			(xNode = XmlGetChildByTag(featureNode, "x", "xmlns", JABBER_FEAT_DATA_FORMS)) != nullptr &&
 			(fieldNode = XmlGetChildByTag(xNode, "field", "var", "stream-method")) != nullptr) {
 
-			BOOL bIbbOnly = m_bBsOnlyIBB;
+			BOOL bIbbOnly = !m_bBsDirect;
 			const TiXmlElement *optionNode = nullptr;
 			JABBER_FT_TYPE ftType = FT_OOB;
 
@@ -508,7 +515,7 @@ bool CJabberProto::FtHandleBytestreamRequest(const TiXmlElement *iqNode, CJabber
 
 	const char *sid = XmlGetAttr(queryNode, "sid");
 	JABBER_LIST_ITEM *item = ListGetItemPtr(LIST_FTRECV, sid);
-	if (sid && item) {
+	if (sid && item && m_bBsDirect) {
 		// Start Bytestream session
 		JABBER_BYTE_TRANSFER *jbt = new JABBER_BYTE_TRANSFER;
 		jbt->iqNode = iqNode->DeepClone(&jbt->doc)->ToElement();
@@ -645,9 +652,11 @@ LBL_Fail:
 	if (auto *slotNode = XmlFirstChild(iqNode, "slot")) {
 		if (auto *putNode = XmlFirstChild(slotNode, "put")) {
 			const char *szXmlns = slotNode->Attribute("xmlns"), *szUrl = nullptr;
+			uint8_t version = 0;
 			if (!mir_strcmp(szXmlns, JABBER_FEAT_UPLOAD)) {
 				szUrl = putNode->GetText();
 				debugLogA("%s: setting url to %s", szXmlns, szUrl);
+				version = 1;
 			}
 			else if (!mir_strcmp(szXmlns, JABBER_FEAT_UPLOAD0)) {
 				szUrl = putNode->Attribute("url");
@@ -709,7 +718,7 @@ LBL_Fail:
 
 				// this parameter is optional, if not specified we simply use upload URL
 				CMStringA szMessage;
-				if (auto *szGetUrl = XmlGetAttr(XmlFirstChild(slotNode, "get"), "url"))
+				if (auto *szGetUrl = version ?  XmlGetChildText(slotNode, "get") : XmlGetAttr(XmlFirstChild(slotNode, "get"), "url"))
 					szMessage = szGetUrl;
 				else
 					szMessage = szUrl;
@@ -800,8 +809,11 @@ bool CJabberProto::FtTryInlineFile(filetransfer *ft)
 	auto *nPara = nBody << XCHILD("p");
 	nPara << XCHILD("img") << XATTR("src", CMStringA(FORMAT, "cid:sha1+%s@bob.xmpp.org", szHash));
 
-	m << XCHILDNS("request", JABBER_FEAT_MESSAGE_RECEIPTS);
-	m << XCHILDNS("markable", JABBER_FEAT_CHAT_MARKERS);
+	if (IsSendAck(ft->std.hContact)) {
+		m << XCHILDNS("request", JABBER_FEAT_MESSAGE_RECEIPTS);
+		m << XCHILDNS("markable", JABBER_FEAT_CHAT_MARKERS);
+	}
+	
 	m_ThreadInfo->send(m);
 
 	// emulate a message for us
