@@ -193,7 +193,6 @@ struct CJabberProto : public PROTO<CJabberProto>, public IJabberInterface
 	CMOption<bool> m_bBsDirectManual;
 	CMOption<bool> m_bBsProxyManual;
 	CMOption<bool> m_bDisable3920auth;
-	CMOption<bool> m_bDisableFrame;
 	CMOption<bool> m_bEnableAvatars;
 	CMOption<bool> m_bEnableCarbons;
 	CMOption<bool> m_bEnableChatStates;
@@ -295,9 +294,7 @@ struct CJabberProto : public PROTO<CJabberProto>, public IJabberInterface
 	HANDLE m_hThreadConsole;
 	UINT m_dwConsoleThreadId;
 
-	// proto frame
-	CJabberInfoFrame *m_pInfoFrame;
-
+	// lists
 	LIST<JABBER_LIST_ITEM> m_lstRoster;
 	mir_cs m_csLists;
 	BOOL   m_bListInitialised;
@@ -422,7 +419,6 @@ struct CJabberProto : public PROTO<CJabberProto>, public IJabberInterface
 
 	CMStringA  m_szFeaturesCrc;
 
-	void       AddDefaultCaps();
 	bool       HandleCapsInfoRequest(const TiXmlElement *iqNode, CJabberIqInfo *pInfo, const char *szNode);
 	void       RequestOldCapsInfo(pResourceStatus &r, const char *fullJid);
 	void       UpdateFeatHash();
@@ -430,6 +426,9 @@ struct CJabberProto : public PROTO<CJabberProto>, public IJabberInterface
 	JabberCapsBits GetTotalJidCapabilities(const char *jid);
 	JabberCapsBits GetResourceCapabilities(const char *jid);
 	JabberCapsBits GetResourceCapabilities(const char *jid, pResourceStatus &r);
+
+	LIST<char> GetSortedFeatStrings(JabberCapsBits jcb);
+	JabberCapsBits GetOwnCaps(bool IncludeDynamic = true);
 
 	//---- jabber_captcha.cpp ------------------------------------------------------------
 
@@ -753,9 +752,6 @@ struct CJabberProto : public PROTO<CJabberProto>, public IJabberInterface
 	void       __cdecl SendMessageAckThread(void* hContact);
 			   
 	MCONTACT   AddToListByJID(const char *newJid, uint32_t flags);
-			   
-	void       InfoFrame_OnSetup(CJabberInfoFrame_Event *evt);
-	void       InfoFrame_OnTransport(CJabberInfoFrame_Event *evt);
 
 	//---- jabber_rc.cpp -----------------------------------------------------------------
 
@@ -864,10 +860,7 @@ struct CJabberProto : public PROTO<CJabberProto>, public IJabberInterface
 	void       SendVisibleInvisiblePresence(bool invisible);
 	void       SendPresenceTo(int status, const char* to, const TiXmlElement *extra = nullptr, const char *msg = nullptr);
 	void       SendPresence(int iStatus, bool bSendToAll);
-			     
-	void       RebuildInfoFrame(void);
-	void       InitInfoFrame(void);
-	
+
 	// returns buf or nullptr on error
 	char*      GetClientJID(MCONTACT hContact, char *dest, size_t destLen);
 	char*      GetClientJID(const char *jid, char *dest, size_t destLen);
@@ -923,9 +916,6 @@ struct CJabberProto : public PROTO<CJabberProto>, public IJabberInterface
 			    
 	void       SetContactTune(MCONTACT hContact,  const wchar_t *szArtist, const wchar_t *szLength, const wchar_t *szSource, const wchar_t *szTitle, const wchar_t *szTrack);
 			    
-	void       InfoFrame_OnUserMood(CJabberInfoFrame_Event *evt);
-	void       InfoFrame_OnUserActivity(CJabberInfoFrame_Event *evt);
-
 	CPepServiceList m_pepServices;
 
 private:

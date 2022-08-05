@@ -35,10 +35,10 @@ static wchar_t tszAvatarRoot[MAX_PATH];
 wchar_t* GetContactID(MCONTACT hContact)
 {
 	char *szProto = Proto_GetBaseAccountName(hContact);
-	if (db_get_b(hContact, szProto, "ChatRoom", 0) == 1)
+	if (Contact::IsGroupChat(hContact, szProto))
 		return db_get_wsa(hContact, szProto, "ChatRoomID");
 
-	return Contact_GetInfo(CNF_UNIQUEID, hContact, szProto);
+	return Contact::GetInfo(CNF_UNIQUEID, hContact, szProto);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////

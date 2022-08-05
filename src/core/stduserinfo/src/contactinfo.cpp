@@ -214,6 +214,18 @@ static int IsOverEmail(HWND hwndDlg, wchar_t *szEmail, int cchEmail)
 	return 0;
 }
 
+static DataItem itemsContact[] = {
+	{ "e-mail",       0, 0 },
+	{ "e-mail0",      0, 0 },
+	{ "Mye-mail0",    0, 0 },
+	{ "Phone",        0, 0 },
+	{ "Fax",          0, 0 },
+	{ "Cellular",     0, 0 },
+	{ "CompanyPhone", 0, 0 },
+	{ "CompanyFax",   0, 0 },
+	{ "MyPhone0",     0, 0 },
+};
+
 class CContactPage : public CUserInfoPageDlg
 {
 	typedef CUserInfoPageDlg CSuper;
@@ -285,6 +297,11 @@ public:
 		}
 
 		return RD_ANCHORX_LEFT | RD_ANCHORY_TOP;
+	}
+
+	bool IsEmpty() const override
+	{
+		return IsEmptyValue(m_hContact, itemsContact);
 	}
 
 	bool OnRefresh() override
@@ -553,5 +570,6 @@ void InitContactInfo(WPARAM wParam, USERINFOPAGE &uip)
 {
 	uip.pDialog = new CContactPage();
 	uip.szTitle.a = LPGEN("Contact");
+	uip.dwInitParam = (INT_PTR)g_plugin.getIconHandle(IDI_CONTACT);
 	g_plugin.addUserInfo(wParam, &uip);
 }

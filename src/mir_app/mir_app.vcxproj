@@ -54,7 +54,7 @@
     <ClCompile Include="src\cluiservices.cpp" />
     <ClCompile Include="src\CMPluginBase.cpp" />
     <ClCompile Include="src\colorchooser.cpp" />
-    <ClCompile Include="src\contact.cpp" />
+    <ClCompile Include="src\clccontact.cpp" />
     <ClCompile Include="src\contacts.cpp" />
     <ClCompile Include="src\database.cpp" />
     <ClCompile Include="src\db_events.cpp" />
@@ -217,9 +217,6 @@
     <None Include="res\cursor_hyperlink.cur" />
     <None Include="src\mir_app.def" />
     <None Include="src\mir_app64.def" />
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="..\docs\contributors.txt" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="res\addgroup.ico" />

@@ -430,7 +430,7 @@ int CGlobals::OkToExit(WPARAM, LPARAM)
 	CMimAPI::m_shutDown = true;
 
 	PluginConfig.globalContainerSettings.fPrivate = false;
-	Utils::WriteContainerSettingsToDB(0, &PluginConfig.globalContainerSettings, nullptr);
+	Utils::WriteContainerSettingsToDB(0, &PluginConfig.globalContainerSettings);
 	return 0;
 }
 
@@ -502,7 +502,7 @@ void CGlobals::logStatusChange(WPARAM wParam, const CContactCache *c)
 		return;
 
 	// don't log them if WE are logging off
-	if (Proto_GetStatus(c->getProto()) == ID_STATUS_OFFLINE || db_get_b(hContact, c->getProto(), "ChatRoom", 0))
+	if (Proto_GetStatus(c->getProto()) == ID_STATUS_OFFLINE || Contact::IsGroupChat(hContact, c->getProto()))
 		return;
 
 	uint16_t wStatus = LOWORD(wParam);

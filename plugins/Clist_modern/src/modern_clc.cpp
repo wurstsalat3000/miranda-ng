@@ -1094,7 +1094,7 @@ static LRESULT clcOnLButtonUp(ClcData *dat, HWND hwnd, UINT msg, WPARAM wParam, 
 			if (contSour->isChat() || contDest->isChat())
 				break;
 
-			if (contSour->type == CLCIT_CONTACT) {
+			if (contSour->type == CLCIT_CONTACT && db_mc_isEnabled()) {
 				MCONTACT hcontact = contSour->hContact;
 				if (mir_strcmp(contSour->pce->szProto, META_PROTO)) {
 					wchar_t Wording[500];
@@ -1306,7 +1306,7 @@ static LRESULT clcOnIntmGroupChanged(ClcData *dat, HWND hwnd, UINT, WPARAM wPara
 		flags = contact->flags;
 	}
 	Clist_DeleteItemFromTree(hwnd, wParam);
-	if (GetWindowLongPtr(hwnd, GWL_STYLE) & CLS_SHOWHIDDEN || !Contact_IsHidden(wParam)) {
+	if (GetWindowLongPtr(hwnd, GWL_STYLE) & CLS_SHOWHIDDEN || !Contact::IsHidden(wParam)) {
 		g_clistApi.pfnAddContactToTree(hwnd, dat, wParam, 1, 1);
 		if (Clist_FindItem(hwnd, dat, wParam, &contact)) {
 			memcpy(contact->iExtraImage, iExtraImage, sizeof(iExtraImage));
@@ -1658,7 +1658,7 @@ int ClcDoProtoAck(ACKDATA *ack)
 	if (ack->type == ACKTYPE_AWAYMSG) {
 		if (ack->result == ACKRESULT_SUCCESS && ack->lParam) {
 			if (ack->szModule != nullptr)
-				if (db_get_b(ack->hContact, ack->szModule, "ChatRoom", 0) != 0)
+				if (Contact::IsGroupChat(ack->hContact, ack->szModule))
 					return 0;
 
 			g_plugin.setWString(ack->hContact, "StatusMsg", (const wchar_t *)ack->lParam);
@@ -1666,7 +1666,7 @@ int ClcDoProtoAck(ACKDATA *ack)
 		}
 		else {
 			if (ack->szModule != nullptr)
-				if (db_get_b(ack->hContact, ack->szModule, "ChatRoom", 0) != 0)
+				if (Contact::IsGroupChat(ack->hContact, ack->szModule))
 					return 0;
 
 			if (ack->hContact) {

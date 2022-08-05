@@ -66,7 +66,7 @@ void CMsgDialog::AdjustBottomAvatarDisplay()
 	GetAvatarVisibility();
 
 	bool bInfoPanel = m_pPanel.isActive();
-	HBITMAP hbm = (bInfoPanel && m_pContainer->m_avatarMode != 3) ? m_hOwnPic : (m_ace ? m_ace->hbmPic : PluginConfig.g_hbmUnknown);
+	HBITMAP hbm = (bInfoPanel && m_pContainer->cfg.avatarMode != 3) ? m_hOwnPic : (m_ace ? m_ace->hbmPic : PluginConfig.g_hbmUnknown);
 	if (hbm) {
 		if (m_dynaSplitter == 0 || m_iSplitterY == 0)
 			LoadSplitter();
@@ -88,14 +88,14 @@ void CMsgDialog::AdjustBottomAvatarDisplay()
 
 void CMsgDialog::CalcDynamicAvatarSize(BITMAP *bminfo)
 {
-	if (m_bWasBackgroundCreate || m_pContainer->m_flags.m_bDeferredConfigure || m_pContainer->m_flags.m_bCreateMinimized || IsIconic(m_pContainer->m_hwnd))
+	if (m_bWasBackgroundCreate || m_pContainer->cfg.flags.m_bDeferredConfigure || m_pContainer->cfg.flags.m_bCreateMinimized || IsIconic(m_pContainer->m_hwnd))
 		return;  // at this stage, the layout is not yet ready...
 
 	RECT rc;
 	GetClientRect(m_hwnd, &rc);
 
-	BOOL bBottomToolBar = m_pContainer->m_flags.m_bBottomToolbar;
-	BOOL bToolBar = m_pContainer->m_flags.m_bHideToolbar ? 0 : 1;
+	BOOL bBottomToolBar = m_pContainer->cfg.flags.m_bBottomToolbar;
+	BOOL bToolBar = m_pContainer->cfg.flags.m_bHideToolbar ? 0 : 1;
 	int  iSplitOffset = m_bIsAutosizingInput ? 1 : 0;
 
 	double picAspect = (bminfo->bmWidth == 0 || bminfo->bmHeight == 0) ? 1.0 : (double)(bminfo->bmWidth / (double)bminfo->bmHeight);
@@ -171,7 +171,7 @@ void CMsgDialog::DetermineMinHeight()
 {
 	RECT rc;
 	LONG height = (m_pPanel.isActive() ? m_pPanel.getHeight() + 2 : 0);
-	if (!m_pContainer->m_flags.m_bHideToolbar)
+	if (!m_pContainer->cfg.flags.m_bHideToolbar)
 		height += DPISCALEY_S(24); // toolbar
 	GetClientRect(m_message.GetHwnd(), &rc);
 	height += rc.bottom; // input area
@@ -550,7 +550,7 @@ void CMsgDialog::FlashTab(bool bInvertMode)
 	TCITEM item = {};
 	item.mask = TCIF_IMAGE;
 	TabCtrl_SetItem(m_hwndParent, m_iTabID, &item);
-	if (m_pContainer->m_flags.m_bSideBar)
+	if (m_pContainer->cfg.flags.m_bSideBar)
 		m_pContainer->m_pSideBar->updateSession(this);
 }
 
@@ -560,8 +560,8 @@ void CMsgDialog::FlashTab(bool bInvertMode)
 
 bool CMsgDialog::GetAvatarVisibility()
 {
-	uint8_t bAvatarMode = m_pContainer->m_avatarMode;
-	uint8_t bOwnAvatarMode = m_pContainer->m_ownAvatarMode;
+	uint8_t bAvatarMode = m_pContainer->cfg.avatarMode;
+	uint8_t bOwnAvatarMode = m_pContainer->cfg.ownAvatarMode;
 	char hideOverride = (char)M.GetByte(m_hContact, "hideavatar", -1);
 
 	// infopanel visible, consider own avatar display
@@ -672,9 +672,9 @@ HICON CMsgDialog::GetMyContactIcon(LPCSTR szSetting)
 
 void CMsgDialog::GetMyNick()
 {
-	ptrW tszNick(Contact_GetInfo(CNF_CUSTOMNICK, 0, m_cache->getActiveProto()));
+	ptrW tszNick(Contact::GetInfo(CNF_CUSTOMNICK, 0, m_cache->getActiveProto()));
 	if (tszNick == nullptr)
-		tszNick = Contact_GetInfo(CNF_NICK, 0, m_cache->getActiveProto());
+		tszNick = Contact::GetInfo(CNF_NICK, 0, m_cache->getActiveProto());
 	if (tszNick != nullptr) {
 		if (mir_wstrlen(tszNick) == 0 || !mir_wstrcmp(tszNick, TranslateT("'(Unknown contact)'")))
 			wcsncpy_s(m_wszMyNickname, (m_myUin[0] ? m_myUin : TranslateT("'(Unknown contact)'")), _TRUNCATE);
@@ -690,7 +690,7 @@ void CMsgDialog::GetMyNick()
 
 void CMsgDialog::GetMYUIN()
 {
-	ptrW uid(Contact_GetInfo(CNF_DISPLAYUID, 0, m_cache->getActiveProto()));
+	ptrW uid(Contact::GetInfo(CNF_DISPLAYUID, 0, m_cache->getActiveProto()));
 	if (uid != nullptr)
 		wcsncpy_s(m_myUin, uid, _TRUNCATE);
 	else
@@ -792,7 +792,7 @@ void CMsgDialog::LoadContactAvatar()
 	AdjustBottomAvatarDisplay();
 	CalcDynamicAvatarSize(&bm);
 
-	if (!m_pPanel.isActive() || m_pContainer->m_avatarMode == 3) {
+	if (!m_pPanel.isActive() || m_pContainer->cfg.avatarMode == 3) {
 		m_iRealAvatarHeight = 0;
 		PostMessage(m_hwnd, WM_SIZE, 0, 0);
 	}
@@ -817,7 +817,7 @@ void CMsgDialog::LoadOwnAvatar()
 	else
 		m_hOwnPic = PluginConfig.g_hbmUnknown;
 
-	if (m_pPanel.isActive() && m_pContainer->m_avatarMode != 3) {
+	if (m_pPanel.isActive() && m_pContainer->cfg.avatarMode != 3) {
 		BITMAP bm;
 
 		m_iRealAvatarHeight = 0;
@@ -841,7 +841,7 @@ void CMsgDialog::LoadSettings()
 void CMsgDialog::LoadSplitter()
 {
 	if (m_bIsAutosizingInput) {
-		m_iSplitterY = (m_pContainer->m_flags.m_bBottomToolbar) ? DPISCALEY_S(46 + 22) : DPISCALEY_S(46);
+		m_iSplitterY = (m_pContainer->cfg.flags.m_bBottomToolbar) ? DPISCALEY_S(46 + 22) : DPISCALEY_S(46);
 
 		if (CSkin::m_skinEnabled && !SkinItems[ID_EXTBKINPUTAREA].IGNORED)
 			m_iSplitterY += (SkinItems[ID_EXTBKINPUTAREA].MARGIN_BOTTOM + SkinItems[ID_EXTBKINPUTAREA].MARGIN_TOP - 2);
@@ -849,10 +849,10 @@ void CMsgDialog::LoadSplitter()
 	}
 
 	if (!m_bSplitterOverride) {
-		if (!m_pContainer->m_pSettings->fPrivate)
+		if (!m_pContainer->cfg.fPrivate)
 			m_iSplitterY = (int)M.GetDword("splitsplity", 60);
 		else
-			m_iSplitterY = m_pContainer->m_pSettings->iSplitterY;
+			m_iSplitterY = m_pContainer->cfg.iSplitterY;
 	}
 	else m_iSplitterY = (int)M.GetDword(m_hContact, "splitsplity", M.GetDword("splitsplity", 60));
 
@@ -1032,7 +1032,7 @@ int CMsgDialog::MsgWindowUpdateMenu(HMENU submenu, int menuID)
 	bool bInfoPanel = m_pPanel.isActive();
 
 	if (menuID == MENU_TABCONTEXT) {
-		EnableMenuItem(submenu, ID_TABMENU_LEAVECHATROOM, (isChat() && ProtoServiceExists(m_szProto, PS_LEAVECHAT)) ? MF_ENABLED : MF_DISABLED);
+		EnableMenuItem(submenu, ID_TABMENU_LEAVECHATROOM, (isChat() && ProtoServiceExists(m_szProto, PS_LEAVECHAT)) ? MF_ENABLED : MF_GRAYED);
 		EnableMenuItem(submenu, ID_TABMENU_ATTACHTOCONTAINER, (M.GetByte("useclistgroups", 0) || M.GetByte("singlewinmode", 0)) ? MF_GRAYED : MF_ENABLED);
 		EnableMenuItem(submenu, ID_TABMENU_CLEARSAVEDTABPOSITION, (M.GetDword(m_hContact, "tabindex", -1) != -1) ? MF_ENABLED : MF_GRAYED);
 	}
@@ -1046,21 +1046,21 @@ int CMsgDialog::MsgWindowUpdateMenu(HMENU submenu, int menuID)
 		mii.cbSize = sizeof(mii);
 		mii.fMask = MIIM_STRING;
 
-		EnableMenuItem(submenu, ID_PICMENU_SAVETHISPICTUREAS, MF_BYCOMMAND | (picValid ? MF_ENABLED : MF_GRAYED));
+		EnableMenuItem(submenu, ID_PICMENU_SAVETHISPICTUREAS, picValid ? MF_ENABLED : MF_GRAYED);
 
-		CheckMenuItem(visMenu, ID_VISIBILITY_DEFAULT, MF_BYCOMMAND | (avOverride == -1 ? MF_CHECKED : MF_UNCHECKED));
-		CheckMenuItem(visMenu, ID_VISIBILITY_HIDDENFORTHISCONTACT, MF_BYCOMMAND | (avOverride == 0 ? MF_CHECKED : MF_UNCHECKED));
-		CheckMenuItem(visMenu, ID_VISIBILITY_VISIBLEFORTHISCONTACT, MF_BYCOMMAND | (avOverride == 1 ? MF_CHECKED : MF_UNCHECKED));
+		CheckMenuItem(visMenu, ID_VISIBILITY_DEFAULT, avOverride == -1 ? MF_CHECKED : MF_UNCHECKED);
+		CheckMenuItem(visMenu, ID_VISIBILITY_HIDDENFORTHISCONTACT, avOverride == 0 ? MF_CHECKED : MF_UNCHECKED);
+		CheckMenuItem(visMenu, ID_VISIBILITY_VISIBLEFORTHISCONTACT, avOverride == 1 ? MF_CHECKED : MF_UNCHECKED);
 
-		CheckMenuItem(submenu, ID_PICMENU_ALWAYSKEEPTHEBUTTONBARATFULLWIDTH, MF_BYCOMMAND | (PluginConfig.m_bAlwaysFullToolbarWidth ? MF_CHECKED : MF_UNCHECKED));
+		CheckMenuItem(submenu, ID_PICMENU_ALWAYSKEEPTHEBUTTONBARATFULLWIDTH, PluginConfig.m_bAlwaysFullToolbarWidth ? MF_CHECKED : MF_UNCHECKED);
 		if (!bInfoPanel) {
-			EnableMenuItem(submenu, ID_PICMENU_SETTINGS, MF_BYCOMMAND | (ServiceExists(MS_AV_GETAVATARBITMAP) ? MF_ENABLED : MF_GRAYED));
+			EnableMenuItem(submenu, ID_PICMENU_SETTINGS, ServiceExists(MS_AV_GETAVATARBITMAP) ? MF_ENABLED : MF_GRAYED);
 			szText = TranslateT("Contact picture settings...");
 			EnableMenuItem(submenu, 0, MF_BYPOSITION | MF_ENABLED);
 		}
 		else {
 			EnableMenuItem(submenu, 0, MF_BYPOSITION | MF_GRAYED);
-			EnableMenuItem(submenu, ID_PICMENU_SETTINGS, MF_BYCOMMAND | ((ServiceExists(MS_AV_SETMYAVATARW) && CallService(MS_AV_CANSETMYAVATAR, (WPARAM)(m_cache->getActiveProto()), 0)) ? MF_ENABLED : MF_GRAYED));
+			EnableMenuItem(submenu, ID_PICMENU_SETTINGS, (ServiceExists(MS_AV_SETMYAVATARW) && CallService(MS_AV_CANSETMYAVATAR, (WPARAM)(m_cache->getActiveProto()), 0)) ? MF_ENABLED : MF_GRAYED);
 			szText = TranslateT("Set your avatar...");
 		}
 		mii.dwTypeData = szText;
@@ -1071,12 +1071,12 @@ int CMsgDialog::MsgWindowUpdateMenu(HMENU submenu, int menuID)
 		HMENU visMenu = GetSubMenu(submenu, 0);
 		char  avOverride = (char)M.GetByte(m_hContact, "hideavatar", -1);
 
-		CheckMenuItem(visMenu, ID_VISIBILITY_DEFAULT, MF_BYCOMMAND | (avOverride == -1 ? MF_CHECKED : MF_UNCHECKED));
-		CheckMenuItem(visMenu, ID_VISIBILITY_HIDDENFORTHISCONTACT, MF_BYCOMMAND | (avOverride == 0 ? MF_CHECKED : MF_UNCHECKED));
-		CheckMenuItem(visMenu, ID_VISIBILITY_VISIBLEFORTHISCONTACT, MF_BYCOMMAND | (avOverride == 1 ? MF_CHECKED : MF_UNCHECKED));
+		CheckMenuItem(visMenu, ID_VISIBILITY_DEFAULT, avOverride == -1 ? MF_CHECKED : MF_UNCHECKED);
+		CheckMenuItem(visMenu, ID_VISIBILITY_HIDDENFORTHISCONTACT, avOverride == 0 ? MF_CHECKED : MF_UNCHECKED);
+		CheckMenuItem(visMenu, ID_VISIBILITY_VISIBLEFORTHISCONTACT, avOverride == 1 ? MF_CHECKED : MF_UNCHECKED);
 
-		EnableMenuItem(submenu, ID_PICMENU_SETTINGS, MF_BYCOMMAND | (ServiceExists(MS_AV_GETAVATARBITMAP) ? MF_ENABLED : MF_GRAYED));
-		EnableMenuItem(submenu, ID_PANELPICMENU_SAVETHISPICTUREAS, MF_BYCOMMAND | ((m_ace && m_ace->hbmPic && m_ace->hbmPic != PluginConfig.g_hbmUnknown) ? MF_ENABLED : MF_GRAYED));
+		EnableMenuItem(submenu, ID_PICMENU_SETTINGS, ServiceExists(MS_AV_GETAVATARBITMAP) ? MF_ENABLED : MF_GRAYED);
+		EnableMenuItem(submenu, ID_PANELPICMENU_SAVETHISPICTUREAS, (m_ace && m_ace->hbmPic && m_ace->hbmPic != PluginConfig.g_hbmUnknown) ? MF_ENABLED : MF_GRAYED);
 	}
 	return 0;
 }
@@ -1314,8 +1314,8 @@ void CMsgDialog::SaveSplitter()
 	if (m_bSplitterOverride)
 		db_set_dw(m_hContact, SRMSGMOD_T, "splitsplity", m_iSplitterY);
 	else {
-		if (m_pContainer->m_pSettings->fPrivate)
-			m_pContainer->m_pSettings->iSplitterY = m_iSplitterY;
+		if (m_pContainer->cfg.fPrivate)
+			m_pContainer->cfg.iSplitterY = m_iSplitterY;
 		else
 			db_set_dw(0, SRMSGMOD_T, "splitsplity", m_iSplitterY);
 	}
@@ -1604,7 +1604,7 @@ void CMsgDialog::ShowPicture(bool showNewPic)
 		m_pic.cy = m_pic.cx = DPISCALEY_S(60);
 
 	if (showNewPic) {
-		if (m_pPanel.isActive() && m_pContainer->m_avatarMode != 3) {
+		if (m_pPanel.isActive() && m_pContainer->cfg.avatarMode != 3) {
 			if (!m_hwndPanelPic) {
 				InvalidateRect(m_hwnd, nullptr, TRUE);
 				UpdateWindow(m_hwnd);
@@ -1641,23 +1641,23 @@ void CMsgDialog::ShowPopupMenu(const CCtrlBase &pCtrl, POINT pt)
 		hSubMenu = GetSubMenu(hMenu, 0);
 	else {
 		hSubMenu = GetSubMenu(hMenu, 2);
-		EnableMenuItem(hSubMenu, IDM_PASTEFORMATTED, MF_BYCOMMAND | (m_SendFormat != 0 ? MF_ENABLED : MF_GRAYED));
-		EnableMenuItem(hSubMenu, ID_EDITOR_PASTEANDSENDIMMEDIATELY, MF_BYCOMMAND | (PluginConfig.m_PasteAndSend ? MF_ENABLED : MF_GRAYED));
-		CheckMenuItem(hSubMenu, ID_EDITOR_SHOWMESSAGELENGTHINDICATOR, MF_BYCOMMAND | (PluginConfig.m_visualMessageSizeIndicator ? MF_CHECKED : MF_UNCHECKED));
-		EnableMenuItem(hSubMenu, ID_EDITOR_SHOWMESSAGELENGTHINDICATOR, MF_BYCOMMAND | (m_pContainer->m_hwndStatus ? MF_ENABLED : MF_GRAYED));
+		EnableMenuItem(hSubMenu, IDM_PASTEFORMATTED, m_SendFormat != 0 ? MF_ENABLED : MF_GRAYED);
+		EnableMenuItem(hSubMenu, ID_EDITOR_PASTEANDSENDIMMEDIATELY, PluginConfig.m_PasteAndSend ? MF_ENABLED : MF_GRAYED);
+		CheckMenuItem(hSubMenu, ID_EDITOR_SHOWMESSAGELENGTHINDICATOR, PluginConfig.m_visualMessageSizeIndicator ? MF_CHECKED : MF_UNCHECKED);
+		EnableMenuItem(hSubMenu, ID_EDITOR_SHOWMESSAGELENGTHINDICATOR, m_pContainer->m_hwndStatus ? MF_ENABLED : MF_GRAYED);
 	}
 	TranslateMenu(hSubMenu);
 	pCtrl.SendMsg(EM_EXGETSEL, 0, (LPARAM)& sel);
 	if (sel.cpMin == sel.cpMax) {
-		EnableMenuItem(hSubMenu, IDM_COPY, MF_BYCOMMAND | MF_GRAYED);
-		EnableMenuItem(hSubMenu, IDM_QUOTE, MF_BYCOMMAND | MF_GRAYED);
+		EnableMenuItem(hSubMenu, IDM_COPY, MF_GRAYED);
+		EnableMenuItem(hSubMenu, IDM_QUOTE, MF_GRAYED);
 		if (pCtrl.GetCtrlId() == IDC_SRMM_MESSAGE)
-			EnableMenuItem(hSubMenu, IDM_CUT, MF_BYCOMMAND | MF_GRAYED);
+			EnableMenuItem(hSubMenu, IDM_CUT, MF_GRAYED);
 	}
 
 	if (pCtrl.GetCtrlId() == IDC_SRMM_LOG) {
 		InsertMenuA(hSubMenu, 6, MF_BYPOSITION | MF_SEPARATOR, 0, nullptr);
-		CheckMenuItem(hSubMenu, ID_LOG_FREEZELOG, MF_BYCOMMAND | (m_bScrollingDisabled ? MF_CHECKED : MF_UNCHECKED));
+		CheckMenuItem(hSubMenu, ID_LOG_FREEZELOG, m_bScrollingDisabled ? MF_CHECKED : MF_UNCHECKED);
 	}
 
 	MessageWindowPopupData mwpd;
@@ -1758,7 +1758,7 @@ void CMsgDialog::SplitterMoved(int coord, HWND hwnd)
 				iSplitterX = 35;
 			if (iSplitterX > rc.right - rc.left - 35)
 				iSplitterX = rc.right - rc.left - 35;
-			m_pContainer->m_pSettings->iSplitterX = iSplitterX;
+			m_pContainer->cfg.iSplitterX = iSplitterX;
 		}
 		Resize();
 		break;
@@ -1778,7 +1778,7 @@ void CMsgDialog::SplitterMoved(int coord, HWND hwnd)
 			// attempt to fix splitter troubles..
 			// hardcoded limits... better solution is possible, but this works for now
 			int bottomtoolbarH = 0;
-			if (m_pContainer->m_flags.m_bBottomToolbar)
+			if (m_pContainer->cfg.flags.m_bBottomToolbar)
 				bottomtoolbarH = 22;
 
 			if (m_iSplitterY < (DPISCALEY_S(MINSPLITTERY) + 5 + bottomtoolbarH)) {	// min splitter size
@@ -1870,15 +1870,11 @@ bool CMsgDialog::TabAutoComplete()
 		return false;
 
 	bool isTopic = false, isRoom = false;
-	wchar_t *pszName = nullptr;
 	wchar_t *pszText = (wchar_t *)mir_calloc((iLen + 10) * sizeof(wchar_t));
 
 	gt.flags = GT_DEFAULT;
 	gt.cb = (iLen + 9) * sizeof(wchar_t);
 	m_message.SendMsg(EM_GETTEXTEX, (WPARAM)& gt, (LPARAM)pszText);
-
-	if (start > 1 && pszText[start - 1] == ' ' && pszText[start - 2] == ':')
-		start -= 2;
 
 	if (m_wszSearchResult != nullptr) {
 		int cbResult = (int)mir_wstrlen(m_wszSearchResult);
@@ -1904,11 +1900,14 @@ LBL_SkipEnd:
 		if (topicStart > 5 && wcsstr(&pszText[topicStart - 6], L"/topic") == &pszText[topicStart - 6])
 			isTopic = true;
 	}
+	
 	if (m_wszSearchQuery == nullptr) {
 		m_wszSearchQuery = mir_wstrndup(pszText + start, end - start);
 		m_wszSearchResult = mir_wstrdup(m_wszSearchQuery);
 		m_pLastSession = nullptr;
 	}
+
+	const wchar_t *pszName = nullptr;
 	if (isTopic)
 		pszName = m_si->ptszTopic;
 	else if (isRoom) {
@@ -1921,18 +1920,23 @@ LBL_SkipEnd:
 	replaceStrW(m_wszSearchResult, nullptr);
 
 	if (pszName != nullptr) {
-		m_wszSearchResult = mir_wstrdup(pszName);
 		if (end != start) {
-			ptrW szReplace;
-			if (!isRoom && !isTopic && g_Settings.bAddColonToAutoComplete && start == 0) {
-				szReplace = (wchar_t *)mir_alloc((mir_wstrlen(pszName) + 4) * sizeof(wchar_t));
-				mir_wstrcpy(szReplace, pszName);
-				mir_wstrcat(szReplace, g_Settings.bUseCommaAsColon ? L", " : L": ");
-				pszName = szReplace;
+			CMStringW szReplace;
+			if (!isRoom && !isTopic && start == 0) {
+				szReplace = pszName;
+				if (mir_wstrlen(g_Settings.pwszAutoText))
+					szReplace.Append(g_Settings.pwszAutoText);
+				szReplace.AppendChar(' ');
+				m_wszSearchResult = szReplace.Detach();
+				pszName = m_wszSearchResult;
 			}
+			else m_wszSearchResult = mir_wstrdup(pszName);
+
 			m_message.SendMsg(EM_SETSEL, start, end);
 			m_message.SendMsg(EM_REPLACESEL, TRUE, (LPARAM)pszName);
 		}
+		else m_wszSearchResult = mir_wstrdup(pszName);
+
 		return true;
 	}
 
@@ -2297,7 +2301,7 @@ void CMsgDialog::UpdateTitle()
 			}
 			if (m_iTabID >= 0) {
 				TabCtrl_SetItem(m_hwndParent, m_iTabID, &item);
-				if (m_pContainer->m_flags.m_bSideBar)
+				if (m_pContainer->cfg.flags.m_bSideBar)
 					m_pContainer->m_pSideBar->updateSession(this);
 			}
 			if (m_pContainer->m_hwndActive == m_hwnd && bChanged)
@@ -2311,7 +2315,7 @@ void CMsgDialog::UpdateTitle()
 		// care about MetaContacts and update the statusbar icon with the currently "most online" contact...
 		if (m_bIsMeta) {
 			PostMessage(m_hwnd, DM_OWNNICKCHANGED, 0, 0);
-			if (m_pContainer->m_flags.m_bUinStatusBar)
+			if (m_pContainer->cfg.flags.m_bUinStatusBar)
 				DM_UpdateLastMessage();
 		}
 	}
@@ -2352,9 +2356,9 @@ void CMsgDialog::UpdateWindowState(UINT msg)
 		return;
 
 	if (msg == WM_ACTIVATE) {
-		if (m_pContainer->m_flags.m_bTransparent) {
-			uint32_t trans = LOWORD(m_pContainer->m_pSettings->dwTransparency);
-			SetLayeredWindowAttributes(m_pContainer->m_hwnd, CSkin::m_ContainerColorKey, (uint8_t)trans, (m_pContainer->m_flags.m_bTransparent ? LWA_ALPHA : 0));
+		if (m_pContainer->cfg.flags.m_bTransparent) {
+			uint32_t trans = LOWORD(m_pContainer->cfg.dwTransparency);
+			SetLayeredWindowAttributes(m_pContainer->m_hwnd, CSkin::m_ContainerColorKey, (uint8_t)trans, (m_pContainer->cfg.flags.m_bTransparent ? LWA_ALPHA : 0));
 		}
 	}
 
@@ -2411,7 +2415,7 @@ void CMsgDialog::UpdateWindowState(UINT msg)
 			m_iFlashIcon = nullptr;
 		}
 
-		m_pContainer->m_flags.m_bNeedsUpdateTitle = false;
+		m_pContainer->cfg.flags.m_bNeedsUpdateTitle = false;
 
 		if (m_bNeedCheckSize)
 			PostMessage(m_hwnd, DM_SAVESIZE, 0, 0);
@@ -2433,7 +2437,7 @@ void CMsgDialog::UpdateWindowState(UINT msg)
 				g_clistApi.pfnRemoveEvent(m_hContact, m_hFlashingEvent);
 			m_hFlashingEvent = 0;
 		}
-		m_pContainer->m_flags.m_bNeedsUpdateTitle = false;
+		m_pContainer->cfg.flags.m_bNeedsUpdateTitle = false;
 
 		if (m_bDeferredRemakeLog && !IsIconic(m_pContainer->m_hwnd)) {
 			RemakeLog();
@@ -2475,7 +2479,7 @@ void CMsgDialog::UpdateWindowState(UINT msg)
 	if (M.isAero())
 		InvalidateRect(m_hwndParent, nullptr, FALSE);
 
-	if (m_pContainer->m_flags.m_bSideBar)
+	if (m_pContainer->cfg.flags.m_bSideBar)
 		m_pContainer->m_pSideBar->setActiveItem(this, msg == WM_ACTIVATE);
 
 	if (m_pWnd)

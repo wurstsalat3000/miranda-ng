@@ -397,26 +397,23 @@ int RegisterToolbarIcons(WPARAM, LPARAM)
 	return 0;
 }
 
-void SetButtonsPos(HWND hwndDlg, bool bIsChat)
+void CMsgDialog::SetButtonsPos()
 {
 	HDWP hdwp = BeginDeferWindowPos(Srmm_GetButtonCount());
 
 	int yPos;
 	RECT rc;
-	if (bIsChat) {
-		GetWindowRect(GetDlgItem(hwndDlg, IDC_SPLITTERY), &rc);
-		POINT pt = { 0, rc.top };
-		ScreenToClient(hwndDlg, &pt);
-		yPos = pt.y;
-	}
-	else yPos = 2;
+	GetWindowRect(GetDlgItem(m_hwnd, IDC_SPLITTERY), &rc);
+	POINT pt = { 0, rc.top };
+	ScreenToClient(m_hwnd, &pt);
+	yPos = pt.y;
 
-	GetClientRect(hwndDlg, &rc);
+	GetClientRect(m_hwnd, &rc);
 	int iLeftX = 2, iRightX = rc.right - 2, iGap = Srmm_GetButtonGap();
 
 	CustomButtonData *cbd;
 	for (int i = 0; cbd = Srmm_GetNthButton(i); i++) {
-		HWND hwndButton = GetDlgItem(hwndDlg, cbd->m_dwButtonCID);
+		HWND hwndButton = GetDlgItem(m_hwnd, cbd->m_dwButtonCID);
 		if (hwndButton == nullptr || cbd->m_bHidden)
 			continue;
 
@@ -491,7 +488,7 @@ static int PrebuildContactMenu(WPARAM hContact, LPARAM)
 		char *szProto = Proto_GetBaseAccountName(hContact);
 		if (szProto) {
 			// leave this menu item hidden for chats
-			if (!db_get_b(hContact, szProto, "ChatRoom", 0))
+			if (!Contact::IsGroupChat(hContact, szProto))
 				if (CallProtoService(szProto, PS_GETCAPS, PFLAGNUM_1, 0) & PF1_IMSEND)
 					bEnabled = true;
 		}

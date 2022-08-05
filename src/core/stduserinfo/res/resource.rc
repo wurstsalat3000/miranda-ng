@@ -1,6 +1,6 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "..\..\..\mir_app\src\resource.h"
+#include "..\src\resource.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -19,6 +19,19 @@
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #pragma code_page(1252)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+IDI_FOLDER              ICON                    "folder.ico"
+IDI_ITEM                ICON                    "item.ico"
+IDI_CONTACT             ICON                    "contact.ico"
+IDI_NOTES               ICON                    "notes.ico"
+IDI_SUMMARY             ICON                    "summary.ico"
+IDI_WORK                ICON                    "work.ico"
+IDI_LOCATION            ICON                    "location.ico"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -71,7 +84,7 @@ BEGIN
                     "MHeaderbarCtrl",0x0,0,0,318,25
     CONTROL         "",IDC_PAGETREE,"SysTreeView32",TVS_HASBUTTONS | TVS_HASLINES | TVS_DISABLEDRAGDROP | TVS_SHOWSELALWAYS | TVS_NOTOOLTIPS | TVS_TRACKSELECT | TVS_NOHSCROLL | TVS_NONEVENHEIGHT | WS_TABSTOP,3,30,76,176,WS_EX_STATICEDGE
     PUSHBUTTON      "Update now",IDC_UPDATE,85,191,55,14,WS_DISABLED
-    CTEXT           "Updating",IDC_UPDATING,145,194,113,8,SS_NOPREFIX | SS_CENTERIMAGE
+    CTEXT           "Updating",IDC_UPDATING,145,194,110,8,SS_NOPREFIX | SS_CENTERIMAGE
     DEFPUSHBUTTON   "OK",IDOK,263,191,50,14
     LTEXT           "",IDC_TABS,87,30,225,155,NOT WS_VISIBLE | WS_BORDER
 END
@@ -288,7 +301,7 @@ END
 
 1 TEXTINCLUDE 
 BEGIN
-    "..\\..\\..\\mir_app\\src\\resource.h\0"
+    "..\\src\\resource.h\0"
 END
 
 2 TEXTINCLUDE 

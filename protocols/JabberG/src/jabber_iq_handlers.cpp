@@ -250,14 +250,13 @@ bool CJabberProto::OnRosterPushRequest(const TiXmlElement*, CJabberIqInfo *pInfo
 				UpdateSubscriptionInfo(item->hContact, item);
 			}
 			else if (isChatRoom(item->hContact))
-				Contact_Hide(item->hContact, false);
+				Contact::Hide(item->hContact, false);
 			else
 				UpdateSubscriptionInfo(item->hContact, item);
 		}
 	}
 
 	UI_SAFE_NOTIFY(m_pDlgServiceDiscovery, WM_JABBER_TRANSPORT_REFRESH);
-	RebuildInfoFrame();
 	return true;
 }
 

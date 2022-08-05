@@ -252,7 +252,7 @@ int CMimAPI::TypingMessage(WPARAM hContact, LPARAM nSecs)
 	}
 	else fShowOnClist = false;
 
-	if ((!foundWin || !pContainer->m_flags.m_bNoSound) && preTyping != (nSecs != 0))
+	if ((!foundWin || !pContainer->cfg.flags.m_bNoSound) && preTyping != (nSecs != 0))
 		Skin_PlaySound(nSecs ? "TNStart" : "TNStop");
 
 	if (g_plugin.bPopups) {
@@ -351,7 +351,7 @@ int CMimAPI::PrebuildContactMenu(WPARAM hContact, LPARAM)
 	char *szProto = Proto_GetBaseAccountName(hContact);
 	if (szProto) {
 		// leave this menu item hidden for chats
-		if (!db_get_b(hContact, szProto, "ChatRoom", 0))
+		if (!Contact::IsGroupChat(hContact, szProto))
 			if (CallProtoService(szProto, PS_GETCAPS, PFLAGNUM_1, 0) & PF1_IMSEND)
 				bEnabled = true;
 	}

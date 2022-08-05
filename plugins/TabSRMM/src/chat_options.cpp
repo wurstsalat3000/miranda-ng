@@ -197,7 +197,7 @@ static IconItem _logicons[] =
 	{ LPGEN("Quit (10x10)"), "chat_log_quit", IDI_QUIT },
 	{ LPGEN("Kick (10x10)"), "chat_log_kick", IDI_KICK },
 	{ LPGEN("Notice (10x10)"), "chat_log_notice", IDI_NOTICE },
-	{ LPGEN("Nickchange (10x10)"), "chat_log_nick", IDI_NICK },
+	{ LPGEN("Nick change (10x10)"), "chat_log_nick", IDI_NICK },
 	{ LPGEN("Topic (10x10)"), "chat_log_topic", IDI_TOPIC },
 	{ LPGEN("Highlight (10x10)"), "chat_log_highlight", IDI_HIGHLIGHT },
 	{ LPGEN("Information (10x10)"), "chat_log_info", IDI_INFO }
@@ -497,7 +497,7 @@ static TOptionListItem lvItemsChat[] =
 	{ 0, LPGENW("Create tabs or windows for highlight events"), 0, LOI_TYPE_SETTING, (UINT_PTR)"CreateWindowOnHighlight", 0 },
 	{ 0, LPGENW("Activate chat window on highlight"), 0, LOI_TYPE_SETTING, (UINT_PTR)"AnnoyingHighlight", 0 },
 	{ 0, LPGENW("Show list of users in the chat room"), 1, LOI_TYPE_SETTING, (UINT_PTR)"ShowNicklist", 0 },
-	{ 0, LPGENW("Colorize nicknames in member list"), 1, LOI_TYPE_SETTING, (UINT_PTR)"ColorizeNicks", 0 },
+	{ 0, LPGENW("Colorize nicknames in member list (you need to adjust colors)"), 1, LOI_TYPE_SETTING, (UINT_PTR)"ColorizeNicks", 0 },
 	{ 0, LPGENW("Show topic as status message on the contact list"), 1, LOI_TYPE_SETTING, (UINT_PTR)"TopicOnClist", 0 },
 	{ 0, LPGENW("Do not pop up the window when joining a chat room"), 0, LOI_TYPE_SETTING, (UINT_PTR)"PopupOnJoin", 0 },
 	{ 0, LPGENW("Sync splitter position with standard IM sessions"), 0, LOI_TYPE_SETTING, (UINT_PTR)"SyncSplitter", 0 },
@@ -511,8 +511,6 @@ static TOptionListItem lvItemsChat[] =
 	{ 0, LPGENW("Timestamp has same color as the event"), 0, LOI_TYPE_SETTING, (UINT_PTR)"TimeStampEventColour", 1 },
 	{ 0, LPGENW("Indent the second line of a message"), 1, LOI_TYPE_SETTING, (UINT_PTR)"LogIndentEnabled", 1 },
 	{ 0, LPGENW("Limit user names in the message log to 20 characters"), 1, LOI_TYPE_SETTING, (UINT_PTR)"LogLimitNames", 1 },
-	{ 0, LPGENW("Add a colon (:) to auto-completed user names"), 1, LOI_TYPE_SETTING, (UINT_PTR)"AddColonToAutoComplete", 1 },
-	{ 0, LPGENW("Add a comma instead of a colon to auto-completed user names"), 0, LOI_TYPE_SETTING, (UINT_PTR)"UseCommaAsColon", 1 },
 	{ 0, LPGENW("Start private conversation on double click in nick list (insert nick if unchecked)"), 0, LOI_TYPE_SETTING, (UINT_PTR)"DoubleClick4Privat", 1 },
 	{ 0, LPGENW("Strip colors from messages in the log"), 0, LOI_TYPE_SETTING, (UINT_PTR)"StripFormatting", 1 },
 	{ 0, LPGENW("Enable the 'event filter' for new rooms"), 0, LOI_TYPE_SETTING, (UINT_PTR)"FilterEnabled", 1 },
@@ -531,12 +529,13 @@ class CChatSettingsDlg : public CChatBaseOptionDlg
 	HTREEITEM hListHeading2 = nullptr;
 
 	CCtrlTreeView treeCheck;
-	CCtrlEdit edtGroup;
+	CCtrlEdit edtGroup, edtAutocomplete;
 
 public:
 	CChatSettingsDlg() :
 		CChatBaseOptionDlg(IDD_OPTIONS1),
 		edtGroup(this, IDC_GROUP),
+		edtAutocomplete(this, IDC_AUTOCOMPLETE),
 		treeCheck(this, IDC_CHECKBOXES)
 	{}
 
@@ -546,6 +545,9 @@ public:
 
 		TreeViewInit(treeCheck, lvGroupsChat, lvItemsChat, CHAT_MODULE);
 
+		if (mir_wstrlen(g_Settings.pwszAutoText))
+			edtAutocomplete.SetText(g_Settings.pwszAutoText);
+
 		edtGroup.SetText(ptrW(Chat_GetGroup()));
 		return true;
 	}
@@ -553,6 +555,9 @@ public:
 	bool OnApply() override
 	{
 		Chat_SetGroup(ptrW(edtGroup.GetText()));
+
+		replaceStrW(g_Settings.pwszAutoText, edtAutocomplete.GetText());
+		db_set_ws(0, CHAT_MODULE, "TextAutocomplete", g_Settings.pwszAutoText);
 
 		TreeViewToDB(treeCheck, lvItemsChat, CHAT_MODULE, nullptr);
 		return true;

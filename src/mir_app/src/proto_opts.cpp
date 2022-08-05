@@ -268,7 +268,7 @@ public:
 		Window_SetSkinIcon_IcoLib(m_hwnd, SKINICON_OTHER_ACCMGR);
 
 		Button_SetSkin_IcoLib(m_hwnd, IDC_ADD, SKINICON_OTHER_ADDCONTACT, LPGEN("New account"));
-		Button_SetSkin_IcoLib(m_hwnd, IDC_EDIT, SKINICON_OTHER_RENAME, LPGEN("Edit"));
+		Button_SetSkin_IcoLib(m_hwnd, IDC_EDIT, SKINICON_OTHER_RENAME, LPGEN("Rename"));
 		Button_SetSkin_IcoLib(m_hwnd, IDC_REMOVE, SKINICON_OTHER_DELETE, LPGEN("Remove account"));
 		Button_SetSkin_IcoLib(m_hwnd, IDC_OPTIONS, SKINICON_OTHER_OPTIONS, LPGEN("Configure..."));
 		Button_SetSkin_IcoLib(m_hwnd, IDC_UPGRADE, SKINICON_OTHER_ACCMGR, LPGEN("Upgrade account"));
@@ -704,7 +704,7 @@ BOOL CAccountListCtrl::OnDrawItem(DRAWITEMSTRUCT *lps)
 			if (wszIdName == nullptr || (UINT_PTR)wszIdName == CALLSERVICE_NOTFOUND)
 				wszIdName = TranslateT("Account ID");
 			
-			ptrW tszUniqueID(Contact_GetInfo(CNF_UNIQUEID, 0, acc->szModuleName));
+			ptrW tszUniqueID(Contact::GetInfo(CNF_UNIQUEID, 0, acc->szModuleName));
 			if (tszUniqueID != nullptr)
 				text.Format(L"%s: %s", wszIdName, tszUniqueID.get());
 			else

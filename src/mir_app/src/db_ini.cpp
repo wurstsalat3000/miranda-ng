@@ -30,19 +30,19 @@ static HANDLE hIniChangeNotification;
 
 static void MyMoveFile(const wchar_t *pwszFrom, const wchar_t *pwszTo)
 {
-	if (PU::PrepareEscalation())
+	if (PU::PrepareEscalation(pwszTo))
 		PU::SafeMoveFile(pwszFrom, pwszTo);
 }
 
 static void MyDeleteFile(const wchar_t *pwszFileName)
 {
-	if (PU::PrepareEscalation())
+	if (PU::PrepareEscalation(pwszFileName))
 		PU::SafeDeleteFile(pwszFileName);
 }
 
 static void ToRecycleBin(const wchar_t *pwszFileName)
 {
-	if (PU::PrepareEscalation())
+	if (PU::PrepareEscalation(pwszFileName))
 		PU::SafeRecycleBin(pwszFileName);
 }
 
@@ -301,7 +301,7 @@ static int EnumSettingsForDeletion(const char *szSetting, void *param)
 
 static void ProcessIniFile(wchar_t* szIniPath, const char *szSafeSections, const char *szUnsafeSections, int secur, bool secFN)
 {
-	FILE *fp = _wfopen(szIniPath, L"rt");
+	FILE *fp = _wfopen(szIniPath, L"rb");
 	if (fp == nullptr)
 		return;
 
@@ -309,7 +309,7 @@ static void ProcessIniFile(wchar_t* szIniPath, const char *szSafeSections, const
 	char szSection[128]; szSection[0] = 0;
 
 	while (!feof(fp)) {
-		char szLine[2048];
+		char szLine[16384];
 		if (fgets(szLine, sizeof(szLine), fp) == nullptr)
 			break;
 LBL_NewLine:

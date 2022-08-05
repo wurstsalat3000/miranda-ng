@@ -39,19 +39,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define MOD_CLIST     "CList"
 
 // database settings (propertysheet)
-#define SET_PROPSHEET_PCBIREADONLY    "PBCIReadOnly"
 #define SET_PROPSHEET_READONLYLABEL   "TILReadonly"
-#define SET_PROPSHEET_AEROADAPTION    "AeroAdaption"
-#define SET_PROPSHEET_SHOWCOLOURS     "ShowColours"
-#define SET_PROPSHEET_CLRNORMAL       "colourNormal"
-#define SET_PROPSHEET_CLRCUSTOM       "colourUser"
-#define SET_PROPSHEET_CLRBOTH         "colourBoth"
-#define SET_PROPSHEET_CLRCHANGED      "colourChanged"
-#define SET_PROPSHEET_CLRMETA         "colourMeta"
+
 #define SET_PROPSHEET_SAVEVCARD       "vCardOnExit"
-#define SET_PROPSHEET_GROUPS          "TreeGroups"
-#define SET_PROPSHEET_SORTITEMS       "TreeSortItems"
-#define SET_PROPSHEET_CHANGEMYDETAILS "ChangeMyDetails"
 #define SET_ABOUT_ACTIVEWINDOW        "AboutActiveWin"
 #define SET_MI_MAIN                   "miMenu"
 #define SET_MI_CONTACT                "miContact"
@@ -60,7 +50,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define SET_MI_STATUS                 "miStatus"
 #define SET_MI_ACCOUNT                "miAccount"
 
-#define SET_EXTENDED_EMAILSERVICE     "emailEx"
 #define SET_CLIST_EXTRAICON_GENDER    "GenderColumn"
 #define SET_CLIST_EXTRAICON_GENDER2   "cliGender"
 #define SET_CLIST_EXTRAICON_COUNTRY   "CountryColumn"
@@ -68,7 +57,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define SET_CLIST_EXTRAICON_EMAIL     "cliEmail"
 #define SET_CLIST_EXTRAICON_PHONE     "cliPhone"
 #define SET_OPT_AUTOTIMEZONE          "AutoTimezone"
-#define SET_META_SCAN                 "MetaScan"
 
 // database   settings (general psp)
 #define SET_ME_PASSWORD               "Password"
@@ -106,9 +94,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define SET_CONTACT_BIRTHDAY          "BirthDay"
 #define SET_CONTACT_BIRTHMONTH        "BirthMonth"
 #define SET_CONTACT_BIRTHYEAR         "BirthYear"
-#define SET_CONTACT_DOBD              "DOBd"
-#define SET_CONTACT_DOBM              "DOBm"
-#define SET_CONTACT_DOBY              "DOBy"
 
 // database settings (company psp)
 #define SET_CONTACT_COMPANY_POSITION    "CompanyPosition"

@@ -217,12 +217,16 @@ bool CMsgDialog::OnInitDialog()
 			}
 		}
 
+		uint32_t dwFlags = SWP_NOMOVE | SWP_NOSIZE;
+		if (!g_Settings.bTabsEnable)
+			dwFlags |= SWP_SHOWWINDOW;
+
 		if (m_bNoActivate) {
-			SetWindowPos(m_hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+			SetWindowPos(m_hwnd, HWND_BOTTOM, 0, 0, 0, 0, dwFlags | SWP_NOACTIVATE);
 			StartFlash();
 		}
 		else {
-			SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+			SetWindowPos(m_hwnd, HWND_TOP, 0, 0, 0, 0, dwFlags);
 			SetForegroundWindow(m_hwnd);
 			SetFocus(m_message.GetHwnd());
 		}
@@ -286,7 +290,7 @@ void CMsgDialog::OnDestroy()
 
 	// a temporary contact should be destroyed after removing window from the window list to prevent recursion
 	if (m_hContact && g_plugin.bDeleteTempCont)
-		if (!Contact_OnList(m_hContact))
+		if (!Contact::OnList(m_hContact))
 			db_delete_contact(m_hContact);
 }
 
@@ -382,7 +386,15 @@ void CMsgDialog::onClick_Ok(CCtrlButton *pButton)
 
 			m_message.SetText(L"");
 
-			if (!g_Settings.bTabsEnable) {
+			if (g_Settings.bTabsEnable) {
+				if (g_plugin.bAutoClose) {
+					m_pOwner->RemoveTab(this);
+					m_autoClose = CLOSE_ON_OK;
+				}
+				else if (g_plugin.bAutoMin)
+					::ShowWindow(GetParent(m_hwndParent), SW_MINIMIZE);
+			}
+			else {
 				if (g_plugin.bAutoClose)
 					::PostMessage(m_hwndParent, WM_CLOSE, 0, 0);
 				else if (g_plugin.bAutoMin)
@@ -465,94 +477,66 @@ int CMsgDialog::Resizer(UTILRESIZECONTROL *urc)
 {
 	bool bToolbar = g_plugin.bShowButtons;
 	bool bSend = g_plugin.bSendButton;
+	bool bNick = false;
 
-	if (isChat()) {
-		bool bNick = m_si->iType != GCW_SERVER && m_bNicklistEnabled;
+	if (isChat()) bNick = m_si->iType != GCW_SERVER && m_bNicklistEnabled;
 
-		switch (urc->wId) {
-		case IDOK:
-			urc->rcItem.left = bSend ? urc->dlgNewSize.cx - 64 + 2 : urc->dlgNewSize.cx;
-			urc->rcItem.right = urc->dlgNewSize.cx;
-			urc->rcItem.top = urc->dlgNewSize.cy - m_iSplitterY + 28;
-			urc->rcItem.bottom = urc->dlgNewSize.cy - 1;
-			return RD_ANCHORX_CUSTOM | RD_ANCHORY_CUSTOM;
+	switch (urc->wId) {
+	case IDOK:
+		urc->rcItem.left = bSend ? urc->dlgNewSize.cx - 64 + 2 : urc->dlgNewSize.cx;
+		urc->rcItem.right = urc->dlgNewSize.cx;
+		urc->rcItem.top = urc->dlgNewSize.cy - m_iSplitterY + m_iBBarHeight;
+		urc->rcItem.bottom = urc->dlgNewSize.cy - 1;
+		return RD_ANCHORX_CUSTOM | RD_ANCHORY_CUSTOM;
 
-		case IDC_SRMM_LOG:
-			urc->rcItem.top = 2;
-			urc->rcItem.left = 0;
-			urc->rcItem.right = bNick ? urc->dlgNewSize.cx - m_iSplitterX : urc->dlgNewSize.cx;
-			urc->rcItem.bottom = urc->dlgNewSize.cy - m_iSplitterY;
-			if (!bToolbar)
-				urc->rcItem.bottom += 20;
-			m_rcLog = urc->rcItem;
-			return RD_ANCHORX_CUSTOM | RD_ANCHORY_CUSTOM;
+	case IDC_SRMM_LOG:
+		urc->rcItem.top = 2;
+		urc->rcItem.left = 0;
+		urc->rcItem.right = bNick ? urc->dlgNewSize.cx - m_iSplitterX : urc->dlgNewSize.cx;
+		urc->rcItem.bottom = urc->dlgNewSize.cy - m_iSplitterY;
+		if (!bToolbar)
+			urc->rcItem.bottom += m_iBBarHeight - 4;
+		m_rcLog = urc->rcItem;
+		return RD_ANCHORX_CUSTOM | RD_ANCHORY_CUSTOM;
 
-		case IDC_SRMM_NICKLIST:
-			urc->rcItem.top = 2;
-			urc->rcItem.right = urc->dlgNewSize.cx;
-			urc->rcItem.left = urc->dlgNewSize.cx - m_iSplitterX + 2;
+	case IDC_SRMM_NICKLIST:
+		urc->rcItem.top = 2;
+		urc->rcItem.right = urc->dlgNewSize.cx;
+		urc->rcItem.left = urc->dlgNewSize.cx - m_iSplitterX + 2;
 LBL_CalcBottom:
-			urc->rcItem.bottom = urc->dlgNewSize.cy - m_iSplitterY;
-			if (!bToolbar)
-				urc->rcItem.bottom += 20;
-			return RD_ANCHORX_CUSTOM | RD_ANCHORY_CUSTOM;
+		urc->rcItem.bottom = urc->dlgNewSize.cy - m_iSplitterY;
+		if (!bToolbar)
+			urc->rcItem.bottom += 20;
+		return RD_ANCHORX_CUSTOM | RD_ANCHORY_CUSTOM;
 
-		case IDC_SPLITTERX:
-			urc->rcItem.top = 1;
-			urc->rcItem.left = urc->dlgNewSize.cx - m_iSplitterX;
-			urc->rcItem.right = urc->rcItem.left + 2;
-			goto LBL_CalcBottom;
+	case IDC_SPLITTERX:
+		urc->rcItem.top = 1;
+		urc->rcItem.left = urc->dlgNewSize.cx - m_iSplitterX;
+		urc->rcItem.right = urc->rcItem.left + 2;
+		goto LBL_CalcBottom;
 
-		case IDC_SPLITTERY:
-			urc->rcItem.top = urc->dlgNewSize.cy - m_iSplitterY;
-			if (!bToolbar)
-				urc->rcItem.top += 20;
-			urc->rcItem.bottom = urc->rcItem.top + 2;
-			return RD_ANCHORX_WIDTH | RD_ANCHORY_CUSTOM;
+	case IDC_SPLITTERY:
+		urc->rcItem.top = urc->dlgNewSize.cy - m_iSplitterY;
+		if (!bToolbar)
+			urc->rcItem.top += 20;
+		urc->rcItem.bottom = urc->rcItem.top + 2;
+		return RD_ANCHORX_WIDTH | RD_ANCHORY_CUSTOM;
 
-		case IDC_SRMM_MESSAGE:
-			urc->rcItem.right = bSend ? urc->dlgNewSize.cx - 64 : urc->dlgNewSize.cx;
-			urc->rcItem.top = urc->dlgNewSize.cy - m_iSplitterY + 28;
-			urc->rcItem.bottom = urc->dlgNewSize.cy - 1;
-			return RD_ANCHORX_LEFT | RD_ANCHORY_CUSTOM;
-		}
+	case IDC_SRMM_MESSAGE:
+		urc->rcItem.right = bSend ? urc->dlgNewSize.cx - 64 : urc->dlgNewSize.cx;
+		urc->rcItem.top = urc->dlgNewSize.cy - m_iSplitterY + 28;
+		urc->rcItem.bottom = urc->dlgNewSize.cy - 1;
+		if (g_plugin.bShowAvatar && m_avatarPic)
+			urc->rcItem.left = m_avatarWidth + 4;
+		return RD_ANCHORX_CUSTOM | RD_ANCHORY_CUSTOM;
+
+	case IDC_AVATAR:
+		urc->rcItem.top = urc->dlgNewSize.cy - (m_iSplitterY - m_iBBarHeight)/2 - m_avatarHeight/2 + 1;
+		urc->rcItem.bottom = urc->rcItem.top + m_avatarHeight + 2;
+		urc->rcItem.right = urc->rcItem.left + (m_avatarWidth + 2);
+		return RD_ANCHORX_LEFT | RD_ANCHORY_CUSTOM;
 	}
-	else {
-		switch (urc->wId) {
-		case IDC_SRMM_LOG:
-			if (!g_plugin.bShowButtons)
-				urc->rcItem.top = 2;
-			urc->rcItem.bottom = urc->dlgNewSize.cy - m_iSplitterY;
-			m_rcLog = urc->rcItem;
-			return RD_ANCHORX_WIDTH | RD_ANCHORY_TOP;
 
-		case IDC_SPLITTERY:
-			urc->rcItem.top = urc->dlgNewSize.cy - m_iSplitterY;
-			urc->rcItem.bottom = urc->rcItem.top + 3;
-			return RD_ANCHORX_WIDTH | RD_ANCHORY_CUSTOM;
-
-		case IDC_SRMM_MESSAGE:
-			urc->rcItem.right = bSend ? urc->dlgNewSize.cx - 64 : urc->dlgNewSize.cx - 1;
-			if (g_plugin.bShowAvatar && m_avatarPic)
-				urc->rcItem.left = m_avatarWidth + 4;
-
-			urc->rcItem.top = urc->dlgNewSize.cy - m_iSplitterY + 3;
-			urc->rcItem.bottom = urc->dlgNewSize.cy - 1;
-			return RD_ANCHORX_CUSTOM | RD_ANCHORY_CUSTOM;
-
-		case IDOK:
-			urc->rcItem.left = bSend ? urc->dlgNewSize.cx - 64 + 2 : urc->dlgNewSize.cx - 1;
-			urc->rcItem.right =  urc->dlgNewSize.cx;
-			urc->rcItem.top = urc->dlgNewSize.cy - m_iSplitterY + 3;
-			urc->rcItem.bottom = urc->dlgNewSize.cy - 1;
-			return RD_ANCHORX_CUSTOM | RD_ANCHORY_CUSTOM;
-
-		case IDC_AVATAR:
-			urc->rcItem.top = urc->rcItem.bottom - (m_avatarHeight + 2);
-			urc->rcItem.right = urc->rcItem.left + (m_avatarWidth + 2);
-			return RD_ANCHORX_LEFT | RD_ANCHORY_BOTTOM;
-		}
-	}
 	return RD_ANCHORX_LEFT | RD_ANCHORY_TOP;
 }
 
@@ -604,7 +588,7 @@ INT_PTR CMsgDialog::DlgProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_CBD_UPDATED:
-		SetButtonsPos(m_hwnd, false);
+		SetButtonsPos();
 		break;
 
 	case WM_CTLCOLORLISTBOX:
@@ -638,7 +622,7 @@ INT_PTR CMsgDialog::DlgProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 			}
 
 			CSuper::DlgProc(uMsg, wParam, lParam); // call built-in resizer
-			SetButtonsPos(m_hwnd, isChat());
+			SetButtonsPos();
 			m_pLog->Resize();
 
 			InvalidateRect(m_pOwner->m_hwndStatus, nullptr, true);
@@ -787,7 +771,7 @@ INT_PTR CMsgDialog::DlgProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		switch (LOWORD(wParam)) {
 		case IDC_USERMENU:
 			if (GetKeyState(VK_SHIFT) & 0x8000) {    // copy user name
-				ptrW id(Contact_GetInfo(CNF_UNIQUEID, m_hContact, m_szProto));
+				ptrW id(Contact::GetInfo(CNF_UNIQUEID, m_hContact, m_szProto));
 				if (id != nullptr && OpenClipboard(m_hwnd)) {
 					HGLOBAL hData = GlobalAlloc(GMEM_MOVEABLE, mir_wstrlen(id) * sizeof(wchar_t) + 1);
 					if (hData) {
@@ -812,9 +796,9 @@ INT_PTR CMsgDialog::DlgProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 			break;
 
 		case IDC_ADD:
-			Contact_Add(m_hContact, m_hwnd);
+			Contact::Add(m_hContact, m_hwnd);
 
-			if (Contact_OnList(m_hContact))
+			if (Contact::OnList(m_hContact))
 				ShowWindow(GetDlgItem(m_hwnd, IDC_ADD), FALSE);
 			break;
 		}
@@ -1278,7 +1262,7 @@ void CMsgDialog::OnOptionsApplied(bool bUpdateAvatar)
 		bool bShow = false;
 		if (m_hContact && g_plugin.bShowButtons) {
 			if (cbd->m_dwButtonCID == IDC_ADD) {
-				bShow = !Contact_OnList(m_hContact);
+				bShow = !Contact::OnList(m_hContact);
 				cbd->m_bHidden = !bShow;
 			}
 			else bShow = true;
@@ -1355,7 +1339,7 @@ void CMsgDialog::onSplitterY(CSplitter *pSplitter)
 
 	int toplimit = 63;
 	if (!g_plugin.bShowButtons)
-		toplimit += 22;
+		toplimit += m_iBBarHeight;
 
 	if (m_iSplitterY < m_minEditBoxSize.cy)
 		m_iSplitterY = m_minEditBoxSize.cy;
@@ -1411,7 +1395,7 @@ void CMsgDialog::NotifyTyping(int mode)
 		if (protoCaps & PF1_INVISLIST && protoStatus == ID_STATUS_INVISIBLE && db_get_w(m_hContact, m_szProto, "ApparentMode", 0) != ID_STATUS_ONLINE)
 			return;
 
-		if (!g_plugin.bTypingUnknown && !Contact_OnList(m_hContact))
+		if (!g_plugin.bTypingUnknown && !Contact::OnList(m_hContact))
 			return;
 
 		// End user check
@@ -1568,7 +1552,7 @@ void CMsgDialog::UpdateSizeBar()
 		}
 
 		if (m_avatarPic && m_minEditBoxSize.cy <= m_avatarHeight) {
-			m_minEditBoxSize.cy = m_avatarHeight + 8;
+			m_minEditBoxSize.cy = m_avatarHeight + 28;
 			if (m_iSplitterY < m_minEditBoxSize.cy) {
 				m_iSplitterY = m_minEditBoxSize.cy;
 				Resize();

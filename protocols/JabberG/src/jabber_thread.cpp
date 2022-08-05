@@ -491,7 +491,6 @@ recvRest:
 			m_bJabberOnline = false;
 			info.zlibUninit();
 			EnableMenuItems(false);
-			RebuildInfoFrame();
 			if (m_hwndJabberChangePassword)
 				// Since this is a different thread, simulate the click on the cancel button instead
 				SendMessage(m_hwndJabberChangePassword, WM_COMMAND, MAKEWORD(IDCANCEL, 0), 0);
@@ -654,23 +653,23 @@ void CJabberProto::OnProcessFeatures(const TiXmlElement *node, ThreadData *info)
 					else if (!mir_strcmp(szMechanism, "SCRAM-SHA-1"))
 						pAuth = new TScramAuth(info, szMechanism, EVP_sha1(), 500);
 					else if (!mir_strcmp(szMechanism, "SCRAM-SHA-1-PLUS"))
-						pAuth = new TScramAuth(info, szMechanism, EVP_sha1(), 600);
+						pAuth = new TScramAuth(info, szMechanism, EVP_sha1(), 601);
 					else if (!mir_strcmp(szMechanism, "SCRAM-SHA-224"))
 						pAuth = new TScramAuth(info, szMechanism, EVP_sha224(), 510);
 					else if (!mir_strcmp(szMechanism, "SCRAM-SHA-224-PLUS"))
-						pAuth = new TScramAuth(info, szMechanism, EVP_sha224(), 610);
+						pAuth = new TScramAuth(info, szMechanism, EVP_sha224(), 611);
 					else if (!mir_strcmp(szMechanism, "SCRAM-SHA-256"))
 						pAuth = new TScramAuth(info, szMechanism, EVP_sha256(), 520);
 					else if (!mir_strcmp(szMechanism, "SCRAM-SHA-256-PLUS"))
-						pAuth = new TScramAuth(info, szMechanism, EVP_sha256(), 620);
+						pAuth = new TScramAuth(info, szMechanism, EVP_sha256(), 621);
 					else if (!mir_strcmp(szMechanism, "SCRAM-SHA-384"))
 						pAuth = new TScramAuth(info, szMechanism, EVP_sha384(), 530);
 					else if (!mir_strcmp(szMechanism, "SCRAM-SHA-384-PLUS"))
-						pAuth = new TScramAuth(info, szMechanism, EVP_sha384(), 630);
+						pAuth = new TScramAuth(info, szMechanism, EVP_sha384(), 631);
 					else if (!mir_strcmp(szMechanism, "SCRAM-SHA-512"))
 						pAuth = new TScramAuth(info, szMechanism, EVP_sha512(), 540);
 					else if (!mir_strcmp(szMechanism, "SCRAM-SHA-512-PLUS"))
-						pAuth = new TScramAuth(info, szMechanism, EVP_sha512(), 640);
+						pAuth = new TScramAuth(info, szMechanism, EVP_sha512(), 641);
 					else if (!mir_strcmp(szMechanism, "NTLM") || !mir_strcmp(szMechanism, "GSS-SPNEGO") || !mir_strcmp(szMechanism, "GSSAPI"))
 						pAuth = new TNtlmAuth(info, szMechanism);
 					else {
@@ -1672,7 +1671,7 @@ void CJabberProto::OnProcessPresence(const TiXmlElement *node, ThreadData *info)
 			ListRemoveResource(LIST_ROSTER, from);
 
 			hContact = HContactFromJID(from);
-			if (hContact && !Contact_OnList(hContact)) {
+			if (hContact && !Contact::OnList(hContact)) {
 				// remove selfcontact, if where is no more another resources
 				if (item->arResources.getCount() == 1 && ResourceInfoFromJID(info->fullJID))
 					ListRemoveResource(LIST_ROSTER, info->fullJID);
@@ -1722,11 +1721,10 @@ void CJabberProto::OnProcessPresence(const TiXmlElement *node, ThreadData *info)
 						if (item)
 							item->hContact = hContact;
 						setUString(hContact, "Nick", szNick);
-						Contact_PutOnList(hContact);
+						Contact::PutOnList(hContact);
 					}
 				}
 			}
-			RebuildInfoFrame();
 		}
 		else {
 			debugLogA("%s (%s) requests authorization", szNick.get(), from);

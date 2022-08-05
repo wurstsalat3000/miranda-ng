@@ -37,7 +37,7 @@
 [Only show tab bar when it's needed]
 Панель вкладок только когда требуется
 [Tabs at the bottom]
-Вкладки cнизу
+Вкладки снизу
 [Limit names on tabs to]
 Ограничить имена на вкладках
 [characters]
@@ -265,9 +265,9 @@
 [Add ':' to auto-completed names]
 Добавлять ":" к именам пользователей
 [Prefix all events with a timestamp]
-Подставлять время во все события
+Указывать время всех событий
 [Only prefix with timestamp if it has changed]
-Подставлять время, если есть изменения
+Указывать время, только если оно изменилось
 [Timestamp has same color as event]
 Время того же цвета, что и событие
 [Indent the second line of a message]
@@ -540,7 +540,7 @@ consectetur adipisicing elit
 [Info bar background]
 Фон инфо-панели
 [Info bar status message]
-Инфо-панель: cтатусное сообщение
+Инфо-панель: статусное сообщение
 [Background]
 Фон
 [Line between messages]

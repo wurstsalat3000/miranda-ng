@@ -177,7 +177,6 @@
 #define TXT_HISTORY1                    1551
 #define GROUP_STATS                     1553
 #define BTN_BROWSEDIR                   1555
-#define CHECK_OPT_AUTOTIMEZONE          1561
 #define CHECK_OPT_SREMAIL_ENABLED       1562
 #define IDNONE                          1565
 #define CHECK_OPT_READONLYLABEL         1566
@@ -276,7 +275,6 @@
 #define CHECK_SMS                       40104
 #define CHECK_REMIND_STARTUP            40104
 #define CHECK_OPT_DETECTUTF             40105
-#define CHECK_REMIND_SECURED            40105
 #define CHECK_REMIND_HIDDEN             40106
 #define CHECK_REMIND_VISIBLEONLY        40106
 #define CHECK_OPT_ICOVERSION            40108

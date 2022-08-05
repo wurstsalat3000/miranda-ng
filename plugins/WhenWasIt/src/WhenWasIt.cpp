@@ -20,13 +20,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "stdafx.h"
 
-HWND hBirthdaysDlg = nullptr;
-HWND hUpcomingDlg = nullptr;
 MWindowList hAddBirthdayWndsList = nullptr;
 
 CMPlugin g_plugin;
-
-CommonData commonData = { 0 };
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -44,7 +40,26 @@ PLUGININFOEX pluginInfoEx = {
 };
 
 CMPlugin::CMPlugin() :
-	PLUGIN<CMPlugin>(MODULENAME, pluginInfoEx)
+	PLUGIN<CMPlugin>(MODULENAME, pluginInfoEx),
+	foreground(MODULENAME, "Foreground", FOREGROUND_COLOR),
+	background(MODULENAME, "Background", BACKGROUND_COLOR),
+	checkInterval(MODULENAME, "CheckInterval", CHECK_INTERVAL),
+	daysInAdvance(MODULENAME, "DaysInAdvance", DAYS_TO_NOTIFY),
+	daysAfter(MODULENAME, "DaysAfter", DAYS_TO_NOTIFY_AFTER),
+	popupTimeout(MODULENAME, "PopupTimeout", POPUP_TIMEOUT),
+	popupTimeoutToday(MODULENAME, "PopupTimeoutToday", POPUP_TIMEOUT),
+	bUsePopups(MODULENAME, "UsePopups", true),
+	bUseDialog(MODULENAME, "UseDialog", true),
+	bIgnoreSubcontacts(MODULENAME, "IgnoreSubcontacts", false),
+	cShowAgeMode(MODULENAME, "ShowCurrentAge", false),
+	bNoBirthdaysPopup(MODULENAME, "NoBirthdaysPopup", false),
+	bOpenInBackground(MODULENAME, "OpenInBackground", false),
+	cSoundNearDays(MODULENAME, "SoundNearDays", BIRTHDAY_NEAR_DEFAULT_DAYS),
+	lPopupClick(MODULENAME, "PopupLeftClick", 2),
+	rPopupClick(MODULENAME, "PopupRightClick", 1),
+	bOncePerDay(MODULENAME, "OncePerDay", false),
+	cDlgTimeout(MODULENAME, "DlgTimeout", POPUP_TIMEOUT),
+	notifyFor(MODULENAME, "NotifyFor", 0)
 {}
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -65,6 +80,8 @@ int CMPlugin::Load()
 
 	Log("%s", "Hooking events ...");
 	HookEvents();
+
+	CheckConvert();
 
 	hAddBirthdayWndsList = WindowList_Create();
 
@@ -139,15 +156,6 @@ int CMPlugin::Load()
 int CMPlugin::Unload()
 {
 	Log("%s", "Entering function " __FUNCTION__);
-
-	if (hBirthdaysDlg)
-		SendMessage(hBirthdaysDlg, WM_CLOSE, 0, 0);
-
-	if (hUpcomingDlg)
-		SendMessage(hUpcomingDlg, WM_CLOSE, 0, 0);
-
-	WindowList_Broadcast(hAddBirthdayWndsList, WM_CLOSE, 0, 0);
-	WindowList_Destroy(hAddBirthdayWndsList);
 
 	Log("%s", "Unhooking events ...");
 	UnhookEvents();

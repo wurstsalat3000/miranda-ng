@@ -111,7 +111,7 @@ static void ShowMultipleControls(HWND hwndDlg, const UINT *controls, int cContro
 
 void CMsgDialog::SetDialogToType()
 {
-	if (!Contact_OnList(m_hContact)) {
+	if (!Contact::OnList(m_hContact)) {
 		m_bNotOnList = true;
 		ShowMultipleControls(m_hwnd, addControls, _countof(addControls), SW_SHOW);
 		Utils::showDlgControl(m_hwnd, IDC_LOGFROZENTEXT, SW_SHOW);
@@ -402,7 +402,7 @@ bool CMsgDialog::OnInitDialog()
 	m_cache->updateUIN();
 	m_cache->setWindowData(this);
 
-	m_bIsAutosizingInput = m_pContainer->m_flags.m_bAutoSplitter && !m_bSplitterOverride;
+	m_bIsAutosizingInput = m_pContainer->cfg.flags.m_bAutoSplitter && !m_bSplitterOverride;
 	m_szProto = const_cast<char *>(m_cache->getProto());
 	m_bIsMeta = m_cache->isMeta();
 	if (m_bIsMeta)
@@ -448,7 +448,7 @@ bool CMsgDialog::OnInitDialog()
 	m_hwndPanelPicParent = CreateWindowEx(WS_EX_TOPMOST, L"Static", L"", SS_OWNERDRAW | WS_VISIBLE | WS_CHILD, 1, 1, 1, 1, m_hwnd, (HMENU)6000, nullptr, nullptr);
 	mir_subclassWindow(m_hwndPanelPicParent, CInfoPanel::avatarParentSubclass);
 
-	m_bShowUIElements = (m_pContainer->m_flags.m_bHideToolbar) == 0;
+	m_bShowUIElements = (m_pContainer->cfg.flags.m_bHideToolbar) == 0;
 	if (M.GetByte(m_hContact, "no_ack", 0))
 		m_sendMode |= SMODE_NOACK;
 
@@ -614,7 +614,7 @@ bool CMsgDialog::OnInitDialog()
 	LoadSplitter();
 	ShowPicture(true);
 
-	if (m_pContainer->m_flags.m_bCreateMinimized || !m_bActivate || m_pContainer->m_flags.m_bDeferredTabSelect) {
+	if (m_pContainer->cfg.flags.m_bCreateMinimized || !m_bActivate || m_pContainer->cfg.flags.m_bDeferredTabSelect) {
 		m_iFlashIcon = PluginConfig.g_IconMsgEvent;
 		timerFlash.Start(TIMEOUT_FLASHWND);
 		m_bCanFlashTab = true;
@@ -625,7 +625,7 @@ bool CMsgDialog::OnInitDialog()
 
 		if (!isChat())
 			m_pContainer->SetIcon(this, Skin_LoadIcon(SKINICON_EVENT_MESSAGE));
-		m_pContainer->m_flags.m_bNeedsUpdateTitle = true;
+		m_pContainer->cfg.flags.m_bNeedsUpdateTitle = true;
 		m_bWasBackgroundCreate = m_bNeedCheckSize = m_bDeferredScroll = true;
 	}
 
@@ -639,11 +639,11 @@ bool CMsgDialog::OnInitDialog()
 		SetActiveWindow(m_hwnd);
 		SetForegroundWindow(m_hwnd);
 	}
-	else if (m_pContainer->m_flags.m_bCreateMinimized) {
+	else if (m_pContainer->cfg.flags.m_bCreateMinimized) {
 		m_bDeferredScroll = true;
 		ShowWindow(m_hwnd, SW_SHOWNOACTIVATE);
 		m_pContainer->m_hwndActive = m_hwnd;
-		m_pContainer->m_flags.m_bDeferredConfigure = true;
+		m_pContainer->cfg.flags.m_bDeferredConfigure = true;
 	}
 	m_pContainer->UpdateTitle(m_hContact);
 
@@ -657,8 +657,8 @@ bool CMsgDialog::OnInitDialog()
 	m_bInitMode = false;
 	NotifyEvent(MSG_WINDOW_EVT_OPEN);
 
-	if (m_pContainer->m_flags.m_bCreateMinimized) {
-		m_pContainer->m_flags.m_bCreateMinimized = false;
+	if (m_pContainer->cfg.flags.m_bCreateMinimized) {
+		m_pContainer->cfg.flags.m_bCreateMinimized = false;
 		m_pContainer->m_hwndActive = m_hwnd;
 	}
 	return true;
@@ -673,11 +673,11 @@ void CMsgDialog::OnDestroy()
 	m_cache->setWindowData();
 	m_pContainer->ClearMargins();
 	PostMessage(m_pContainer->m_hwnd, WM_SIZE, 0, 1);
-	if (m_pContainer->m_flags.m_bSideBar)
+	if (m_pContainer->cfg.flags.m_bSideBar)
 		m_pContainer->m_pSideBar->removeSession(this);
 
 	if (M.GetByte("deletetemp", 0))
-		if (!Contact_OnList(m_hContact))
+		if (!Contact::OnList(m_hContact))
 			db_delete_contact(m_hContact);
 
 	if (m_hwndContactPic)
@@ -819,7 +819,7 @@ void CMsgDialog::onClick_Ok(CCtrlButton *)
 		m_si->pMI->idleTimeStamp = time(0);
 		UpdateStatusBar();
 		if (m_pContainer)
-			if (fSound && !NEN::bNoSounds && !m_pContainer->m_flags.m_bNoSound)
+			if (fSound && !NEN::bNoSounds && !m_pContainer->cfg.flags.m_bNoSound)
 				Skin_PlaySound("SendMsg");
 	}
 	else {
@@ -890,9 +890,9 @@ void CMsgDialog::onClick_Ok(CCtrlButton *)
 
 void CMsgDialog::onClick_Add(CCtrlButton*)
 {
-	Contact_Add(m_hContact, m_hwnd);
+	Contact::Add(m_hContact, m_hwnd);
 
-	if (Contact_OnList(m_hContact)) {
+	if (Contact::OnList(m_hContact)) {
 		m_bNotOnList = false;
 		ShowMultipleControls(m_hwnd, addControls, _countof(addControls), SW_HIDE);
 		if (!m_bScrollingDisabled)
@@ -1030,8 +1030,8 @@ void CMsgDialog::onDblClick_List(CCtrlListBox *pList)
 	if (g_Settings.bDoubleClick4Privat ? bShift : !bShift) {
 		int selStart = LOWORD(m_message.SendMsg(EM_GETSEL, 0, 0));
 		CMStringW tszName(ui->pszNick);
-		if (selStart == 0)
-			tszName.AppendChar(g_Settings.bUseCommaAsColon ? ',' : ':');
+		if (selStart == 0 && mir_wstrlen(g_Settings.pwszAutoText))
+			tszName.Append(g_Settings.pwszAutoText);
 		tszName.AppendChar(' ');
 
 		m_message.SendMsg(EM_REPLACESEL, FALSE, (LPARAM)tszName.GetString());
@@ -1104,10 +1104,10 @@ int CMsgDialog::Resizer(UTILRESIZECONTROL *urc)
 
 	bool bNick = false;
 	bool bInfoPanel = m_pPanel.isActive();
-	bool bShowToolbar = (m_pContainer->m_flags.m_bHideToolbar) == 0;
-	bool bBottomToolbar = (m_pContainer->m_flags.m_bBottomToolbar) != 0;
+	bool bShowToolbar = (m_pContainer->cfg.flags.m_bHideToolbar) == 0;
+	bool bBottomToolbar = (m_pContainer->cfg.flags.m_bBottomToolbar) != 0;
 
-	int  iSplitterX = m_pContainer->m_pSettings->iSplitterX;
+	int  iSplitterX = m_pContainer->cfg.iSplitterX;
 
 	RECT rc, rcButton;
 	GetClientRect(m_pLog->GetHwnd(), &rc);
@@ -1603,7 +1603,7 @@ int CMsgDialog::OnFilter(MSGFILTER *pFilter)
 		}
 
 		if (pFilter->nmhdr.idFrom == IDC_SRMM_MESSAGE) {
-			if (GetSendButtonState() != PBS_DISABLED && !m_pContainer->m_flags.m_bHideToolbar)
+			if (GetSendButtonState() != PBS_DISABLED && !m_pContainer->cfg.flags.m_bHideToolbar)
 				SetFocus(GetDlgItem(m_hwnd, IDOK));
 			else
 				SetFocus(m_pLog->GetHwnd());
@@ -1773,7 +1773,7 @@ LRESULT CMsgDialog::WndProc_Message(UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_CHAR:
 		KbdState(isShift, isCtrl, isAlt);
 
-		if (!isAlt && !isCtrl && !m_pContainer->m_flags.m_bNoSound && wParam != VK_ESCAPE && !(wParam == VK_TAB && PluginConfig.m_bAllowTab))
+		if (!isAlt && !isCtrl && !m_pContainer->cfg.flags.m_bNoSound && wParam != VK_ESCAPE && !(wParam == VK_TAB && PluginConfig.m_bAllowTab))
 			Skin_PlaySound("SoundOnTyping");
 		break;
 
@@ -1809,7 +1809,7 @@ LRESULT CMsgDialog::WndProc_Message(UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_KEYDOWN:
 		KbdState(isShift, isCtrl, isAlt);
 
-		if (!isAlt && !m_pContainer->m_flags.m_bNoSound && wParam == VK_DELETE)
+		if (!isAlt && !m_pContainer->cfg.flags.m_bNoSound && wParam == VK_DELETE)
 			Skin_PlaySound("SoundOnTyping");
 
 		if (wParam == VK_INSERT && !isShift && !isCtrl && !isAlt) {
@@ -1943,14 +1943,14 @@ LRESULT CMsgDialog::WndProc_Message(UINT msg, WPARAM wParam, LPARAM lParam)
 			RemoveMenu(hSubMenu, 8, MF_BYPOSITION);
 			RemoveMenu(hSubMenu, 4, MF_BYPOSITION);
 
-			EnableMenuItem(hSubMenu, IDM_PASTEFORMATTED, MF_BYCOMMAND | (m_si->pMI->bBold ? MF_ENABLED : MF_GRAYED));
+			EnableMenuItem(hSubMenu, IDM_PASTEFORMATTED, m_si->pMI->bBold ? MF_ENABLED : MF_GRAYED);
 			TranslateMenu(hSubMenu);
 
 			CHARRANGE sel, all = { 0, -1 };
 			m_message.SendMsg(EM_EXGETSEL, 0, (LPARAM)&sel);
 			if (sel.cpMin == sel.cpMax) {
-				EnableMenuItem(hSubMenu, IDM_COPY, MF_BYCOMMAND | MF_GRAYED);
-				EnableMenuItem(hSubMenu, IDM_CUT, MF_BYCOMMAND | MF_GRAYED);
+				EnableMenuItem(hSubMenu, IDM_COPY, MF_GRAYED);
+				EnableMenuItem(hSubMenu, IDM_CUT, MF_GRAYED);
 			}
 
 			MessageWindowPopupData mwpd = { sizeof(mwpd) };
@@ -2258,7 +2258,7 @@ INT_PTR CMsgDialog::DlgProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 			}
 
 			if (m_si == nullptr) {
-				HBITMAP hbm = ((m_pPanel.isActive()) && m_pContainer->m_avatarMode != 3) ? m_hOwnPic : (m_ace ? m_ace->hbmPic : PluginConfig.g_hbmUnknown);
+				HBITMAP hbm = ((m_pPanel.isActive()) && m_pContainer->cfg.avatarMode != 3) ? m_hOwnPic : (m_ace ? m_ace->hbmPic : PluginConfig.g_hbmUnknown);
 				if (hbm != nullptr) {
 					BITMAP bminfo;
 					GetObject(hbm, sizeof(bminfo), &bminfo);
@@ -2277,7 +2277,7 @@ INT_PTR CMsgDialog::DlgProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 				LONG cx = rc.right;
 				LONG panelHeight = m_pPanel.getHeight();
 
-				HBITMAP hbm = (m_pContainer->m_avatarMode == 3) ? m_hOwnPic : (m_ace ? m_ace->hbmPic : PluginConfig.g_hbmUnknown);
+				HBITMAP hbm = (m_pContainer->cfg.avatarMode == 3) ? m_hOwnPic : (m_ace ? m_ace->hbmPic : PluginConfig.g_hbmUnknown);
 				double dHeight = 0, dWidth = 0;
 				Utils::scaleAvatarHeightLimited(hbm, dWidth, dHeight, panelHeight - 2);
 				m_iPanelAvatarX = (int)dWidth;
@@ -2407,42 +2407,36 @@ INT_PTR CMsgDialog::DlgProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 									CHARRANGE chr;
 									m_message.SendMsg(EM_EXGETSEL, 0, (LPARAM)&chr);
 
-									wchar_t tszAplTmpl[] = L"%s:";
-									size_t bufSize = mir_wstrlen(tr.lpstrText) + mir_wstrlen(tszAplTmpl) + 3;
-									wchar_t *tszTmp = (wchar_t *)mir_alloc(bufSize * sizeof(wchar_t)), *tszAppeal = tszTmp;
+									CMStringW buf(tr.lpstrText);
 
+									wchar_t str[2] = { 0, 0 };
 									TEXTRANGE tr2;
-									tr2.lpstrText = (LPTSTR)mir_alloc(sizeof(wchar_t) * 2);
+									tr2.lpstrText = str;
+
 									if (chr.cpMin) {
 										// prepend nick with space if needed
 										tr2.chrg.cpMin = chr.cpMin - 1;
 										tr2.chrg.cpMax = chr.cpMin;
 										m_message.SendMsg(EM_GETTEXTRANGE, 0, (LPARAM)&tr2);
 										if (!iswspace(*tr2.lpstrText))
-											*tszTmp++ = ' ';
-										mir_wstrcpy(tszTmp, tr.lpstrText);
+											buf.Insert(0, ' ');
 									}
-									else // in the beginning of the message window
-										mir_snwprintf(tszAppeal, bufSize, tszAplTmpl, tr.lpstrText);
+									else {// in the beginning of the message window
+										if (mir_wstrlen(g_Settings.pwszAutoText))
+											buf.Append(g_Settings.pwszAutoText);
+									}
 
-									size_t st = mir_wstrlen(tszAppeal);
 									if (chr.cpMax != -1) {
 										tr2.chrg.cpMin = chr.cpMax;
 										tr2.chrg.cpMax = chr.cpMax + 1;
 										// if there is no space after selection,
 										// or there is nothing after selection at all...
-										if (!m_message.SendMsg(EM_GETTEXTRANGE, 0, (LPARAM)&tr2) || !iswspace(*tr2.lpstrText)) {
-											tszAppeal[st++] = ' ';
-											tszAppeal[st++] = '\0';
-										}
+										if (!m_message.SendMsg(EM_GETTEXTRANGE, 0, (LPARAM)&tr2) || !iswspace(*tr2.lpstrText))
+											buf.AppendChar(' ');
 									}
-									else {
-										tszAppeal[st++] = ' ';
-										tszAppeal[st++] = '\0';
-									}
-									m_message.SendMsg(EM_REPLACESEL, FALSE, (LPARAM)tszAppeal);
-									mir_free((void *)tr2.lpstrText);
-									mir_free((void *)tszAppeal);
+									else buf.AppendChar(' ');
+
+									m_message.SendMsg(EM_REPLACESEL, FALSE, (LPARAM)buf.c_str());
 								}
 							}
 							SetFocus(m_message.GetHwnd());
@@ -2468,7 +2462,7 @@ INT_PTR CMsgDialog::DlgProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case DM_CONFIGURETOOLBAR:
 		// configures the toolbar only... if lParam != 0, then it also calls
 		// SetDialogToType() to reconfigure the message window
-		m_bShowUIElements = m_pContainer->m_flags.m_bHideToolbar ? 0 : 1;
+		m_bShowUIElements = m_pContainer->cfg.flags.m_bHideToolbar ? 0 : 1;
 
 		SetWindowLongPtr(GetDlgItem(m_hwnd, IDC_SPLITTERY), GWL_EXSTYLE, GetWindowLongPtr(GetDlgItem(m_hwnd, IDC_SPLITTERY), GWL_EXSTYLE) & ~WS_EX_STATICEDGE);
 
@@ -2566,7 +2560,7 @@ INT_PTR CMsgDialog::DlgProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 				replaceStrW(job->pwszErrorMsg, CMStringW(FORMAT, TranslateT("Delivery failure: %s"), TranslateT("The message send timed out")));
 				job->iStatus = SendQueue::SQ_ERROR;
-				if (!NEN::bNoSounds && !m_pContainer->m_flags.m_bNoSound)
+				if (!NEN::bNoSounds && !m_pContainer->cfg.flags.m_bNoSound)
 					Skin_PlaySound("SendError");
 				if (!m_bErrorState)
 					sendQueue->handleError(this, iIndex);
@@ -2609,7 +2603,7 @@ INT_PTR CMsgDialog::DlgProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 			PostMessage(m_hwnd, DM_UPDATEPICLAYOUT, 0, 0);
 
 			SetFocus(m_message.GetHwnd());
-			if (m_pContainer->m_flags.m_bSideBar)
+			if (m_pContainer->cfg.flags.m_bSideBar)
 				m_pContainer->m_pSideBar->moveButtons();
 		}
 		else {
@@ -2878,7 +2872,7 @@ INT_PTR CMsgDialog::DlgProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case DM_UPDATEUIN:
 		if (m_pPanel.isActive())
 			m_pPanel.Invalidate();
-		if (m_pContainer->m_flags.m_bUinStatusBar)
+		if (m_pContainer->cfg.flags.m_bUinStatusBar)
 			tabUpdateStatusBar();
 		return 0;
 
@@ -2990,7 +2984,7 @@ INT_PTR CMsgDialog::DlgProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 					if (srcDat->isChat() != isChat() && M.GetByte("syncAllPanels", 0) == 0)
 						return 0;
 
-					if (m_pContainer->m_pSettings->fPrivate && srcDat->m_pContainer != m_pContainer)
+					if (m_pContainer->cfg.fPrivate && srcDat->m_pContainer != m_pContainer)
 						return 0;
 
 					m_pPanel.setHeight((LONG)lParam);

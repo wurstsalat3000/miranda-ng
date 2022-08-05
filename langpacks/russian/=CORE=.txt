@@ -59,7 +59,7 @@
 [Yes]
 Да
 [Hide from list only, in order to keep their history and ignore/visibility settings]
-Скрыть из списка (останутся история и настройки видимости)
+Скрыть из списка (останутся история и настройки)
 [Use Options -> Contacts -> Ignore to unhide contacts.]
 Управление отображением контактов осуществляется в разделе "Настройки -> Контакты -> Игнорировать".
 [Are you sure you want to delete %s?]
@@ -965,7 +965,7 @@
 [Module:]
 Модуль:
 [Service:]
-Cлужба:
+Служба:
 [Default]
 По умолчанию
 [Set]
@@ -1516,9 +1516,9 @@ Google Карты
 [Display contact status icon before user role icon]
 Показывать значок статуса перед значком роли
 [Prefix all events with a timestamp]
-Подставлять время во все события
+Указывать время всех событий
 [Only prefix with timestamp if it has changed]
-Подставлять время, если есть изменения
+Указывать время, только если оно изменилось
 [Timestamp has same color as the event]
 Время того же цвета, что и событие
 [Indent the second line of a message]

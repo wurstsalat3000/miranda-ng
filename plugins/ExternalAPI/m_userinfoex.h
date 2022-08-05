@@ -34,7 +34,6 @@ Otherwise the default icon is displayed for this treeitem.
 #ifndef ODPF_UNICODE
  #define ODPF_UNICODE		8	// string fields in OPTIONSDIALOGPAGE are WCHAR*
 #endif
-#define ODPF_ICON			64	// the hIcon member of the option dialog page is valid
 
 /* Handling notifications v0.1.0.4+
 A dialogbox should call SetWindowLongPtr(hDlg, DWLP_MSGRESULT, PSP_CHANGED) on a PSN_INFOCHANGED notification if
@@ -222,19 +221,6 @@ This service creates a dialog, that lists all of the anniversaries
 wParam = lParam = not used
 */
 #define MS_USERINFO_REMINDER_LIST	"UserInfo/Reminder/List"
-
-
-/* UserInfo/Reminder/Check v0.1.2.16+
-This service compares birthday date which is set by the protocol module of each contact
-to the first found custom set birthday date. If a difference is detected, the user is asked
-whether to update the custom set birthday by the one of the protocol or not.
-
-If no custom birthday is set yet and the protocol contains a valid birthday, it is copied to
-primary custom module (e.g.: mBirthday or UserInfo).
-wParam = handle to single contact or NULL to backup all
-lParam = not used
-*/
-#define MS_USERINFO_REMINDER_AGGRASIVEBACKUP "UserInfo/Reminder/AggrassiveBackup"
 
 
 /* UserInfo/Refresh v0.7.0.1+

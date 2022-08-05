@@ -184,6 +184,8 @@ class CThumbBase;
 
 #define STICK_ICON_MSG 10
 
+#define CONTAINER_PREFIX "CNTW_"
+
 struct TLogTheme
 {
 	COLORREF  inbg, outbg, bg, oldinbg, oldoutbg, statbg, inputbg;
@@ -266,12 +268,12 @@ struct TContainerSettings
 
 	uint32_t   dwTransparency;
 	uint32_t   panelheight;
-	int     iSplitterX, iSplitterY;
-	wchar_t szTitleFormat[TITLE_FORMATLEN + 2];
-	uint16_t    avatarMode;
-	uint16_t    ownAvatarMode;
-	uint16_t    autoCloseSeconds;
-	bool    fPrivate;
+	int        iSplitterX, iSplitterY;
+	wchar_t    szTitleFormat[TITLE_FORMATLEN + 2];
+	uint16_t   avatarMode;
+	uint16_t   ownAvatarMode;
+	uint16_t   autoCloseSeconds;
+	bool       fPrivate;
 };
 
 struct ButtonItem;
@@ -282,8 +284,6 @@ struct TContainerData : public MZeroedObject
 	~TContainerData();
 
 	TContainerData *pNext;
-	TContainerFlags m_flags;
-	TContainerFlagsEx m_flagsEx;
 
 	HWND     m_hwndActive; // active message window
 	HWND     m_hwnd;       // the container handle
@@ -324,7 +324,6 @@ struct TContainerData : public MZeroedObject
 	HBITMAP  m_hbmToolbarBG, m_oldhbmToolbarBG;
 	SIZE	   m_szOldToolbarSize;
 	SIZE     m_oldSize, m_preSIZE;
-	uint16_t	m_avatarMode, m_ownAvatarMode;
 	uint8_t	m_bTBRenderingMode;
 	TLogTheme m_theme;
 	CMenuBar *m_pMenuBar;
@@ -332,7 +331,7 @@ struct TContainerData : public MZeroedObject
 	ButtonItem *m_buttonItems;
 	TTemplateSet *m_ltr_templates, *m_rtl_templates;
 	CTaskbarInteract *m_pTaskBar;
-	TContainerSettings *m_pSettings;
+	TContainerSettings cfg;
 
 	wchar_t m_wszName[CONTAINER_NAMELEN + 4];		// container name
 	wchar_t m_szRelThemeFile[MAX_PATH], m_szAbsThemeFile[MAX_PATH];
@@ -351,9 +350,11 @@ struct TContainerData : public MZeroedObject
 	void OptionsDialog(void);
 	void QueryClientArea(RECT &rc);
 	void QueryPending(void);
+	void ReadPrivateSettings(bool fForce);
 	void ReflashContainer(void);
 	void Resize(bool, int newWidth);
 	void RestoreWindowPos(void);
+	void SaveSettings(const char *szSetting);
 	void SelectTab(int iCommand, int idx = 0);
 	void SetAeroMargins(void);
 	void SetIcon(CMsgDialog *pDlg, HICON hIcon);

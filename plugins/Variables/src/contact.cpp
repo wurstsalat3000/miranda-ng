@@ -155,16 +155,16 @@ wchar_t* getContactInfoT(uint8_t type, MCONTACT hContact)
 		break;
 
 	case CNF_UNIQUEID:
-		//UID for ChatRoom
-		if (db_get_b(hContact, szProto, "ChatRoom", 0) == 1)
+		// UID for ChatRoom
+		if (Contact::IsGroupChat(hContact, szProto))
 			if ((res = db_get_wsa(hContact, szProto, "ChatRoomID")) != nullptr)
 				return res;
 
-		//UID for other contact
+		// UID for other contact
 		break;
 	}
 
-	return Contact_GetInfo(type, hContact);
+	return Contact::GetInfo(type, hContact);
 }
 
 // MS_VARS_GETCONTACTFROMSTRING

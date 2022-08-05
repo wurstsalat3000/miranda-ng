@@ -107,6 +107,26 @@ struct CMPlugin : public PLUGIN<CMPlugin>
 {
 	CMPlugin();
 
+	// Common options
+	CMOption<bool> bUseUnknownFlag, bShowStatusIconFlag;
+
+	// Advanced options
+	CMOption<bool> bCheckVersion, bMetaScan, bButtonIcons, bEmailService;
+
+	// Prop sheet options
+	CMOption<bool> bShowColours, bTreeGroups, bSortTree, bReadOnly, bChangeDetails, bAero;
+	CMOption<uint32_t> clrNormal, clrCustom, clrBoth, clrChanged, clrMeta;
+
+	// Reminder options
+	CMOption<uint8_t> iRemindState;
+	CMOption<uint16_t> wRemindOffset, wRemindSoundOffset, wRemindNotifyInterval;
+	CMOption<bool> bRemindExtraIcon, bRemindCheckVisible, bRemindFlashIcon, bRemindStartupCheck, bRemindMenuEnabled;
+
+	// Popup options
+	CMOption<bool> bPopupEnabled, bPopupMsgbox, bPopupProgress;
+	CMOption<uint8_t> iBirthClrType, iAnnivClrType, iPopupDelay;
+	CMOption<uint32_t> clrAback, clrAtext, clrBtext, clrBback;
+	
 	int Load() override;
 	int Unload() override;
 };

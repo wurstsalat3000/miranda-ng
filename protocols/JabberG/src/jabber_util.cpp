@@ -416,10 +416,10 @@ void CJabberProto::SendPresenceTo(int status, const char *to, const TiXmlElement
 		p += extra;
 
 	// XEP-0115:Entity Capabilities
+	TiXmlElement *c = p << XCHILDNS("c", JABBER_FEAT_ENTITY_CAPS) << XATTR("hash", "sha-1")
+		<< XATTR("node", JABBER_CAPS_MIRANDA_NODE) << XATTR("ver", m_szFeaturesCrc);
+	
 	if (m_bAllowVersionRequests) {
-		TiXmlElement *c = p << XCHILDNS("c", JABBER_FEAT_ENTITY_CAPS) << XATTR("hash", "sha-1") 
-			<< XATTR("node", JABBER_CAPS_MIRANDA_NODE) << XATTR("ver", m_szFeaturesCrc);
-
 		LIST<char> arrExtCaps(5);
 		if (g_plugin.bSecureIM)
 			arrExtCaps.insert(JABBER_EXT_SECUREIM);
@@ -700,71 +700,6 @@ void CJabberProto::ComboAddRecentString(HWND hwndDlg, UINT idcCombo, char *param
 	mir_snprintf(setting, "%s%d", param, id);
 	setWString(setting, string);
 	setByte(param, (id + 1) % recentCount);
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////
-// jabber frame maintenance code
-
-static VOID CALLBACK sttRebuildInfoFrameApcProc(void* param)
-{
-	CJabberProto *ppro = (CJabberProto *)param;
-	if (!ppro->m_pInfoFrame)
-		return;
-
-	ppro->m_pInfoFrame->LockUpdates();
-	if (!ppro->m_bJabberOnline) {
-		ppro->m_pInfoFrame->RemoveInfoItem("$/PEP");
-		ppro->m_pInfoFrame->RemoveInfoItem("$/Transports");
-		ppro->m_pInfoFrame->UpdateInfoItem("$/JID", Skin_GetIconHandle(SKINICON_OTHER_USERDETAILS), TranslateT("Offline"));
-	}
-	else {
-		ppro->m_pInfoFrame->UpdateInfoItem("$/JID", Skin_GetIconHandle(SKINICON_OTHER_USERDETAILS), Utf2T(ppro->m_szJabberJID));
-
-		if (!ppro->m_bPepSupported)
-			ppro->m_pInfoFrame->RemoveInfoItem("$/PEP");
-		else {
-			ppro->m_pInfoFrame->RemoveInfoItem("$/PEP/");
-			ppro->m_pInfoFrame->CreateInfoItem("$/PEP", false);
-			ppro->m_pInfoFrame->UpdateInfoItem("$/PEP", g_plugin.getIconHandle(IDI_PL_LIST_ANY), TranslateT("Advanced Status"));
-
-			ppro->m_pInfoFrame->CreateInfoItem("$/PEP/mood", true);
-			ppro->m_pInfoFrame->SetInfoItemCallback("$/PEP/mood", &CJabberProto::InfoFrame_OnUserMood);
-			ppro->m_pInfoFrame->UpdateInfoItem("$/PEP/mood", Skin_GetIconHandle(SKINICON_OTHER_SMALLDOT), TranslateT("Set mood..."));
-
-			ppro->m_pInfoFrame->CreateInfoItem("$/PEP/activity", true);
-			ppro->m_pInfoFrame->SetInfoItemCallback("$/PEP/activity", &CJabberProto::InfoFrame_OnUserActivity);
-			ppro->m_pInfoFrame->UpdateInfoItem("$/PEP/activity", Skin_GetIconHandle(SKINICON_OTHER_SMALLDOT), TranslateT("Set activity..."));
-		}
-
-		ppro->m_pInfoFrame->RemoveInfoItem("$/Transports/");
-		ppro->m_pInfoFrame->CreateInfoItem("$/Transports", false);
-		ppro->m_pInfoFrame->UpdateInfoItem("$/Transports", g_plugin.getIconHandle(IDI_TRANSPORT), TranslateT("Transports"));
-
-		JABBER_LIST_ITEM *item = nullptr;
-		LISTFOREACH(i, ppro, LIST_ROSTER)
-		{
-			if ((item = ppro->ListGetItemPtrFromIndex(i)) != nullptr) {
-				if (strchr(item->jid, '@') == nullptr && strchr(item->jid, '/') == nullptr && item->subscription != SUB_NONE) {
-					MCONTACT hContact = ppro->HContactFromJID(item->jid);
-					if (hContact == 0)
-						continue;
-
-					char name[128];
-					mir_snprintf(name, "$/Transports/%s", item->jid);
-					ppro->m_pInfoFrame->CreateInfoItem(name, true, hContact);
-					ppro->m_pInfoFrame->UpdateInfoItem(name, g_plugin.getIconHandle(IDI_TRANSPORTL), (wchar_t *)item->jid);
-					ppro->m_pInfoFrame->SetInfoItemCallback(name, &CJabberProto::InfoFrame_OnTransport);
-				}
-			}
-		}
-	}
-	ppro->m_pInfoFrame->Update();
-}
-
-void CJabberProto::RebuildInfoFrame()
-{
-	if (!m_bShutdown)
-		CallFunctionAsync(sttRebuildInfoFrameApcProc, this);
 }
 
 ////////////////////////////////////////////////////////////////////////

@@ -34,7 +34,7 @@ static INT_PTR CALLBACK DlgProc_AnniversaryEditor(HWND m_hwnd, UINT uMsg, WPARAM
 		SetUserData(m_hwnd, lParam);
 
 		// set icons
-		if (g_plugin.getByte(SET_ICONS_BUTTONS, 1)) {
+		if (g_plugin.bButtonIcons) {
 			SendDlgItemMessage(m_hwnd, IDOK, BM_SETIMAGE, IMAGE_ICON, (LPARAM)g_plugin.getIcon(IDI_BTN_OK));
 			SendDlgItemMessage(m_hwnd, IDCANCEL, BM_SETIMAGE, IMAGE_ICON, (LPARAM)g_plugin.getIcon(IDI_BTN_CLOSE));
 		}
@@ -128,7 +128,7 @@ struct PSPAnniversaryDlg : public PSPBaseDlg
 	{
 		CAnnivEditCtrl *pDateCtrl = CAnnivEditCtrl::GetObj(m_hwnd, EDIT_ANNIVERSARY_DATE);
 
-		switch(LOWORD(wParam)) {
+		switch(uMsg) {
 		case WM_NOTIFY:
 			switch (((LPNMHDR)lParam)->code) {
 			case EDIT_ANNIVERSARY_DATE:

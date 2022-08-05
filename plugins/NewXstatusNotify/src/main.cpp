@@ -262,7 +262,7 @@ wchar_t* GetStr(STATUSMSGINFO *n, const wchar_t *tmplt)
 
 bool SkipHiddenContact(MCONTACT hContact)
 {
-	return (!opt.HiddenContactsToo && Contact_IsHidden(hContact));
+	return (!opt.HiddenContactsToo && Contact::IsHidden(hContact));
 }
 
 void LogSMsgToDB(STATUSMSGINFO *smi, const wchar_t *tmplt)
@@ -478,7 +478,7 @@ int ProcessStatus(DBCONTACTWRITESETTING *cws, MCONTACT hContact)
 		return 0;
 
 	// we don't want to be notified if new chatroom comes online
-	if (db_get_b(hContact, szProto, "ChatRoom", 0) == 1)
+	if (Contact::IsGroupChat(hContact, szProto))
 		return 0;
 
 	uint16_t oldStatus = DBGetContactSettingRangedWord(hContact, "UserOnline", "LastStatus", ID_STATUS_OFFLINE, ID_STATUS_MIN, ID_STATUS_MAX);

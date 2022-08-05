@@ -322,7 +322,7 @@ class CAnnivList
 				}
 
 				// init reminder groups
-				pDlg->_bRemindEnable = g_plugin.getByte(SET_REMIND_ENABLED, DEFVAL_REMIND_ENABLED) != REMIND_OFF;
+				pDlg->_bRemindEnable = g_plugin.iRemindState != REMIND_OFF;
 				if (hCtrl = GetDlgItem(hDlg, CHECK_REMIND)) {
 					Button_SetCheck(hCtrl, pDlg->_bRemindEnable ? BST_INDETERMINATE : BST_UNCHECKED);
 					EnableWindow(hCtrl, pDlg->_bRemindEnable);
@@ -690,7 +690,7 @@ class CAnnivList
 		MAnnivDate ad;
 		int i = 0;
 		int totalAge = 0;
-		int wDaysBefore = g_plugin.getWord(SET_REMIND_OFFSET, DEFVAL_REMIND_OFFSET);
+		int wDaysBefore = g_plugin.wRemindOffset;
 		int numMale = 0;
 		int numFemale = 0;
 		int numContacts = 0;
@@ -894,7 +894,7 @@ public:
 INT_PTR DlgAnniversaryListShow(WPARAM, LPARAM)
 {
 	if (!gpDlg) {
-		myGlobals.WantAeroAdaption = g_plugin.getByte(SET_PROPSHEET_AEROADAPTION, TRUE);
+		myGlobals.WantAeroAdaption = g_plugin.bAero;
 		gpDlg = new CAnnivList();
 	} 
 	else gpDlg->BringToFront();

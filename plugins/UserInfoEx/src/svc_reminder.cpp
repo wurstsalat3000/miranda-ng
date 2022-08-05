@@ -42,7 +42,7 @@ struct CEvent
 	uint8_t operator << (const CEvent& e);
 };
 
-typedef struct _REMINDEROPTIONS
+struct REMINDEROPTIONS
 {
 	uint16_t	wDaysEarlier;
 	uint8_t	bPopups;
@@ -51,18 +51,16 @@ typedef struct _REMINDEROPTIONS
 	uint8_t	bCheckVisibleOnly;
 	uint8_t	RemindState;
 	CEvent	evt;
-}
-REMINDEROPTIONS, *LPREMINDEROPTIONS;
+};
 
 static HANDLE ExtraIcon = INVALID_HANDLE_VALUE;
 
+static HANDLE ghCListIA = nullptr;
+static HANDLE ghCListIR = nullptr;
+static HANDLE ghSettingsChanged = nullptr;
 
-static HANDLE	ghCListIA = nullptr;
-static HANDLE	ghCListIR = nullptr;
-static HANDLE	ghSettingsChanged = nullptr;
-
-static UINT_PTR	ghRemindTimer = 0;
-static UINT_PTR	ghRemindDateChangeTimer = 0;
+static UINT_PTR ghRemindTimer = 0;
+static UINT_PTR ghRemindDateChangeTimer = 0;
 
 HANDLE ghCListAnnivIcons[11];
 HANDLE ghCListBirthdayIcons[11];
@@ -239,9 +237,9 @@ static int NotifyWithPopup(MCONTACT hContact, CEvent::EType eventType, int DaysT
 	if (!gRemindOpts.bPopups)
 		return 1;
 
-	POPUPDATAW ppd;
+	POPUPDATAW ppd = {};
 	ppd.PluginWindowProc = PopupWindowProc;
-	ppd.iSeconds = (int)g_plugin.getByte(SET_POPUP_DELAY, 0);
+	ppd.iSeconds = g_plugin.iPopupDelay;
 
 	if (hContact) {
 		ppd.lchContact = hContact;
@@ -255,29 +253,29 @@ static int NotifyWithPopup(MCONTACT hContact, CEvent::EType eventType, int DaysT
 
 	switch (eventType) {
 	case CEvent::BIRTHDAY:
-		switch (g_plugin.getByte(SET_POPUP_BIRTHDAY_COLORTYPE, POPUP_COLOR_CUSTOM)) {
+		switch (g_plugin.iBirthClrType) {
 		case POPUP_COLOR_WINDOWS:
 			ppd.colorBack = GetSysColor(COLOR_BTNFACE);
 			ppd.colorText = GetSysColor(COLOR_WINDOWTEXT);
 			break;
 
 		case POPUP_COLOR_CUSTOM:
-			ppd.colorBack = g_plugin.getDword(SET_POPUP_BIRTHDAY_COLOR_BACK, RGB(192, 180, 30));
-			ppd.colorText = g_plugin.getDword(SET_POPUP_BIRTHDAY_COLOR_TEXT, 0);
+			ppd.colorBack = g_plugin.clrBback;
+			ppd.colorText = g_plugin.clrBtext;
 			break;
 		}
 		break;
 
 	case CEvent::ANNIVERSARY:
-		switch (g_plugin.getByte(SET_POPUP_ANNIVERSARY_COLORTYPE, POPUP_COLOR_CUSTOM)) {
+		switch (g_plugin.iAnnivClrType) {
 		case POPUP_COLOR_WINDOWS:
 			ppd.colorBack = GetSysColor(COLOR_BTNFACE);
 			ppd.colorText = GetSysColor(COLOR_WINDOWTEXT);
 			break;
 
 		case POPUP_COLOR_CUSTOM:
-			ppd.colorBack = g_plugin.getDword(SET_POPUP_ANNIVERSARY_COLOR_BACK, RGB(90, 190, 130));
-			ppd.colorText = g_plugin.getDword(SET_POPUP_ANNIVERSARY_COLOR_TEXT, 0);
+			ppd.colorBack = g_plugin.clrAback;
+			ppd.colorText = g_plugin.clrAtext;
 			break;
 		}
 	}
@@ -339,7 +337,7 @@ static void NotifyFlashCListIcon(MCONTACT hContact, const CEvent &evt)
 
 static uint8_t NotifyWithSound(const CEvent &evt)
 {
-	if (evt._wDaysLeft <= min(g_plugin.getByte(SET_REMIND_SOUNDOFFSET, DEFVAL_REMIND_SOUNDOFFSET), gRemindOpts.wDaysEarlier)) {
+	if (evt._wDaysLeft <= min(g_plugin.wRemindSoundOffset, gRemindOpts.wDaysEarlier)) {
 		switch (evt._eType) {
 		case CEvent::BIRTHDAY:
 			Skin_PlaySound(evt._wDaysLeft == 0 ? SOUND_BIRTHDAY_TODAY : SOUND_BIRTHDAY_SOON);
@@ -434,13 +432,12 @@ static uint8_t CheckAnniversaries(MCONTACT hContact, MTime &Now, CEvent &evt, ui
 * @param	Now				- current time
 * @param	evt				- the reference to a structure, which retrieves the resulting DTB
 * @param	bNotify			- if TRUE, a popup will be displayed for a contact having birthday within the next few days.
-* @param	LastAnswer		- this parameter is used for the automatic backup function
 *
 * @retval	TRUE			- contact has a birthday to remind of
 * @retval	FALSE			- contact has no birthday or it is not within the desired period of time.
 **/
 
-static bool CheckBirthday(MCONTACT hContact, MTime &Now, CEvent &evt, uint8_t bNotify, PWORD LastAnwer)
+static bool CheckBirthday(MCONTACT hContact, MTime &Now, CEvent &evt, uint8_t bNotify)
 {
 	if (gRemindOpts.RemindState == REMIND_BIRTH || gRemindOpts.RemindState == REMIND_ALL) {
 		MAnnivDate mtb;
@@ -448,10 +445,6 @@ static bool CheckBirthday(MCONTACT hContact, MTime &Now, CEvent &evt, uint8_t bN
 			int Diff;
 
 			mtb.DBGetReminderOpts(hContact);
-
-			// make backup of each protocol based birthday
-			if (g_plugin.getByte(SET_REMIND_SECUREBIRTHDAY, TRUE))
-				mtb.BackupBirthday(hContact, nullptr, 0, LastAnwer);
 
 			if (mtb.RemindOption() != BST_UNCHECKED) {
 				uint16_t wDaysEarlier = (mtb.RemindOption() == BST_CHECKED) ? mtb.RemindOffset() : -1;
@@ -515,18 +508,17 @@ static bool CheckBirthday(MCONTACT hContact, MTime &Now, CEvent &evt, uint8_t bN
 * @param	Now				- current time
 * @param	evt				- the reference to a structure, which retrieves the resulting DTB
 * @param	bNotify			- if TRUE, a popup will be displayed for a contact having birthday within the next few days.
-* @param	LastAnswer		- this parameter is used for the automatic backup function
 *
 * @return	nothing
 **/
 
-static void CheckContact(MCONTACT hContact, MTime &Now, CEvent &evt, uint8_t bNotify, PWORD LastAnwer = nullptr)
+static void CheckContact(MCONTACT hContact, MTime &Now, CEvent &evt, uint8_t bNotify)
 {
 	// ignore meta subcontacts here as their birthday information are collected explicitly
-	if (hContact && (!gRemindOpts.bCheckVisibleOnly || !Contact_IsHidden(hContact)) && !db_mc_isSub(hContact)) {
+	if (hContact && (!gRemindOpts.bCheckVisibleOnly || !Contact::IsHidden(hContact)) && !db_mc_isSub(hContact)) {
 		CEvent ca;
 
-		if (CheckBirthday(hContact, Now, ca, bNotify, LastAnwer) || CheckAnniversaries(hContact, Now, ca, bNotify)) {
+		if (CheckBirthday(hContact, Now, ca, bNotify) || CheckAnniversaries(hContact, Now, ca, bNotify)) {
 			evt << ca;
 			if (bNotify)
 				NotifyFlashCListIcon(hContact, ca);
@@ -553,9 +545,8 @@ void SvcReminderCheckAll(const ENotify notify)
 
 	// walk through all the contacts stored in the DB
 	CEvent evt;
-	uint16_t a1 = 0;
 	for (auto &hContact : Contacts())
-		CheckContact(hContact, now, evt, notify != NOTIFY_CLIST, &a1);
+		CheckContact(hContact, now, evt, notify != NOTIFY_CLIST);
 
 	if (notify != NOTIFY_CLIST) {
 		// play sound for the next anniversary
@@ -645,11 +636,7 @@ static int OnContactSettingChanged(MCONTACT hContact, DBCONTACTWRITESETTING* pdb
 		CEvent evt;
 		MTime now;
 		now.GetLocalTime();
-		if (!mir_strcmp(pdbcws->szModule, USERINFO)) {
-			uint16_t LastAnswer = IDNONE;
-			CheckContact(hContact, now, evt, FALSE, &LastAnswer);
-		}
-		else CheckContact(hContact, now, evt, FALSE, nullptr);
+		CheckContact(hContact, now, evt, FALSE);
 	}
 	return 0;
 }
@@ -671,45 +658,6 @@ static INT_PTR CheckService(WPARAM, LPARAM)
 {
 	if (gRemindOpts.RemindState != REMIND_OFF)
 		SvcReminderCheckAll(NOTIFY_NOANNIV);
-	return 0;
-}
-
-/**
-* This is the service function for MS_USERINFO_REMINDER_AGGRASIVEBACKUP.
-*
-* @param	hContact		- handle to single contact or NULL to backup all
-* @param	lParam			- if 1, the messagebox will not be displayed
-*
-* return:	0
-**/
-
-static INT_PTR BackupBirthdayService(WPARAM hContact, LPARAM lParam)
-{
-	MAnnivDate mdb;
-
-	if (hContact) {
-		if (!mdb.DBGetBirthDate(hContact))
-			mdb.BackupBirthday(hContact, nullptr, TRUE);
-	}
-	else {
-		uint16_t a1 = 0;
-
-		// walk through all the contacts stored in the DB
-		for (auto &cc : Contacts())
-			if (!db_mc_isSub(cc) && !mdb.DBGetBirthDate(cc))
-				mdb.BackupBirthday(cc, nullptr, TRUE, &a1);
-	}
-
-	if (lParam != TRUE) {
-		MSGBOX mBox;
-		mBox.cbSize = sizeof(MSGBOX);
-		mBox.hParent = nullptr;
-		mBox.hiLogo = g_plugin.getIcon(IDI_BIRTHDAY);
-		mBox.uType = MB_ICON_INFO;
-		mBox.ptszTitle = TranslateT("Update custom birthday");
-		mBox.ptszMsg = TranslateT("Backing up and syncing all birthdays complete!");
-		MsgBoxService(NULL, (LPARAM)&mBox);
-	}
 	return 0;
 }
 
@@ -764,7 +712,7 @@ static void CALLBACK TimerProc_Check(HWND, UINT, UINT_PTR, DWORD)
 
 static void UpdateTimer(uint8_t bStartup)
 {
-	LONG	wNotifyInterval =	60 * 60 * (LONG)g_plugin.getWord(SET_REMIND_NOTIFYINTERVAL, DEFVAL_REMIND_NOTIFYINTERVAL);
+	LONG	wNotifyInterval =	60 * 60 * (LONG)g_plugin.wRemindNotifyInterval;
 	MTime	now, last;
 
 	now.GetTimeUTC();
@@ -773,7 +721,7 @@ static void UpdateTimer(uint8_t bStartup)
 		last.DBGetStamp(0, MODULENAME, SET_REMIND_LASTCHECK);
 
 		// if last check occured at least one day before just do it on startup again
-		if (now.Year() > last.Year() ||	now.Month() > last.Month() ||	now.Day() > last.Day() || g_plugin.getByte(SET_REMIND_CHECKON_STARTUP, FALSE))
+		if (now.Year() > last.Year() ||	now.Month() > last.Month() ||	now.Day() > last.Day() || g_plugin.bRemindFlashIcon)
 			wNotifyInterval = 5;
 		else
 			wNotifyInterval -= now.Compare(last);
@@ -791,7 +739,7 @@ static void UpdateTimer(uint8_t bStartup)
  * module loading & unloading
  ***********************************************************************************************************/
 
-void SvcReminderEnable(uint8_t bEnable)
+void SvcReminderEnable(bool bEnable)
 {
 	if (bEnable) { // Reminder is on
 		// init hooks
@@ -802,12 +750,12 @@ void SvcReminderEnable(uint8_t bEnable)
 			ghSettingsChanged = HookEvent(ME_DB_CONTACT_SETTINGCHANGED, (MIRANDAHOOK)OnContactSettingChanged);
 
 		// reinit reminder options
-		gRemindOpts.RemindState	= g_plugin.getByte(SET_REMIND_ENABLED, DEFVAL_REMIND_ENABLED);
-		gRemindOpts.wDaysEarlier = g_plugin.getWord(SET_REMIND_OFFSET, DEFVAL_REMIND_OFFSET);
-		gRemindOpts.bCListExtraIcon = g_plugin.getByte(SET_REMIND_EXTRAICON, 1);
-		gRemindOpts.bCheckVisibleOnly = g_plugin.getByte(SET_REMIND_CHECKVISIBLE, DEFVAL_REMIND_CHECKVISIBLE);
-		gRemindOpts.bFlashCList = g_plugin.getByte(SET_REMIND_FLASHICON, FALSE);
-		gRemindOpts.bPopups = g_plugin.getByte(SET_POPUP_ENABLED, DEFVAL_POPUP_ENABLED);
+		gRemindOpts.RemindState	= g_plugin.iRemindState;
+		gRemindOpts.wDaysEarlier = g_plugin.wRemindOffset;
+		gRemindOpts.bCListExtraIcon = g_plugin.bRemindExtraIcon;
+		gRemindOpts.bCheckVisibleOnly = g_plugin.bRemindCheckVisible;
+		gRemindOpts.bFlashCList = g_plugin.bRemindFlashIcon;
+		gRemindOpts.bPopups = g_plugin.bPopupEnabled;
 
 		// init the timer
 		UpdateTimer(TRUE);
@@ -834,7 +782,7 @@ void SvcReminderOnModulesLoaded(void)
 	// init clist extra icon structure
 	OnCListRebuildIcons(0, 0);
 
-	SvcReminderEnable(g_plugin.getByte(SET_REMIND_ENABLED, DEFVAL_REMIND_ENABLED) != REMIND_OFF);
+	SvcReminderEnable(g_plugin.iRemindState != REMIND_OFF);
 }
 
 /**
@@ -850,7 +798,6 @@ void SvcReminderLoadModule(void)
 
 	// create service functions
 	CreateServiceFunction(MS_USERINFO_REMINDER_CHECK, CheckService);
-	CreateServiceFunction(MS_USERINFO_REMINDER_AGGRASIVEBACKUP, BackupBirthdayService);
 
 	// register hotkey
 	HOTKEYDESC hk = {};
@@ -860,7 +807,7 @@ void SvcReminderLoadModule(void)
 	hk.pszService = MS_USERINFO_REMINDER_CHECK;
 	g_plugin.addHotkey(&hk);
 
-	if (g_plugin.getByte(SET_REMIND_ENABLED, DEFVAL_REMIND_ENABLED) != REMIND_OFF && ExtraIcon == INVALID_HANDLE_VALUE)
+	if (g_plugin.iRemindState != REMIND_OFF && ExtraIcon == INVALID_HANDLE_VALUE)
 		ExtraIcon = ExtraIcon_RegisterIcolib("Reminder", LPGEN("Reminder (UInfoEx)"), g_plugin.getIconHandle(IDI_ANNIVERSARY));
 }
 

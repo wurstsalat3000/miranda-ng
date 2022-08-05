@@ -511,6 +511,20 @@ class JabberUserPhotoDlg : public CUserInfoPageDlg
 		UI_MESSAGE(WM_PAINT, OnPaint);
 	UI_MESSAGE_MAP_END();
 
+	char *GetFileName() const
+	{
+		ptrA jid(ppro->getUStringA(m_hContact, "jid"));
+		if (jid != nullptr) {
+			JABBER_LIST_ITEM *item = ppro->ListGetItemPtr(LIST_VCARD_TEMP, jid);
+			if (item == nullptr)
+				item = ppro->ListGetItemPtr(LIST_ROSTER, jid);
+			if (item != nullptr)
+				return item->photoFileName;
+		}
+
+		return nullptr;
+	}
+
 public:
 	JabberUserPhotoDlg(CJabberProto *_ppro) :
 		CUserInfoPageDlg(g_plugin, IDD_VCARD_PHOTO),
@@ -538,6 +552,11 @@ public:
 		}
 	}
 
+	bool IsEmpty() const override
+	{
+		return mir_strlen(GetFileName()) == 0;
+	}
+
 	bool OnRefresh() override
 	{
 		if (hBitmap) {
@@ -545,22 +564,15 @@ public:
 			hBitmap = nullptr;
 		}
 		ShowWindow(GetDlgItem(m_hwnd, IDC_SAVE), SW_HIDE);
-		{
-			ptrA jid(ppro->getUStringA(m_hContact, "jid"));
-			if (jid != nullptr) {
-				JABBER_LIST_ITEM *item = ppro->ListGetItemPtr(LIST_VCARD_TEMP, jid);
-				if (item == nullptr)
-					item = ppro->ListGetItemPtr(LIST_ROSTER, jid);
-				if (item != nullptr) {
-					if (item->photoFileName) {
-						ppro->debugLogA("Showing picture from %s", item->photoFileName);
-						hBitmap = Bitmap_Load(Utf2T(item->photoFileName));
-						FreeImage_Premultiply(hBitmap);
-						ShowWindow(GetDlgItem(m_hwnd, IDC_SAVE), SW_SHOW);
-					}
-				}
-			}
+		
+		char *pszFileName = GetFileName();
+		if (mir_strlen(pszFileName)) {
+			ppro->debugLogA("Showing picture from %s", pszFileName);
+			hBitmap = Bitmap_Load(Utf2T(pszFileName));
+			FreeImage_Premultiply(hBitmap);
+			ShowWindow(GetDlgItem(m_hwnd, IDC_SAVE), SW_SHOW);
 		}
+
 		InvalidateRect(m_hwnd, nullptr, TRUE);
 		UpdateWindow(m_hwnd);
 		return true;
@@ -833,8 +845,9 @@ int CJabberProto::OnUserInfoInit(WPARAM wParam, LPARAM hContact)
 	if (szProto != nullptr && !mir_strcmp(szProto, m_szModuleName)) {
 		USERINFOPAGE uip = {};
 		uip.dwInitParam = (LPARAM)this;
-		uip.flags = ODPF_UNICODE | ODPF_USERINFOTAB;
+		uip.flags = ODPF_UNICODE | ODPF_USERINFOTAB | ODPF_ICON;
 		uip.szGroup.w = m_tszUserName;
+		uip.dwInitParam = (LPARAM)Skin_GetProtoIcon(m_szModuleName, ID_STATUS_ONLINE);
 
 		uip.pDialog = new JabberUserInfoDlg(this);
 		uip.position = -2000000000;

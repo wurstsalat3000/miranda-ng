@@ -1,6 +1,6 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
-// Used by ..\res\WhenWasIt.rc
+// Used by W:\miranda-ng\plugins\WhenWasIt\res\WhenWasIt.rc
 //
 #define IDD_OPT_WWI                     101
 #define IDI_BIRTHDAYS                   102
@@ -27,17 +27,13 @@
 #define IDD_ADD_ANNIVERSARY             127
 #define IDD_UPCOMING                    128
 #define IDC_USE_POPUPS                  1002
-#define IDC_USE_CLISTICON               1003
 #define IDC_USE_DIALOG                  1004
 #define IDC_DAYS_IN_ADVANCE             1005
-#define IDC_ADVANCED_ICON               1008
 #define IDC_CHECK_INTERVAL              1009
 #define IDC_POPUP_TIMEOUT               1010
 #define IDC_POPUPS_STATIC               1011
-#define IDC_CLIST_STATIC                1012
 #define IDC_BACKGROUND                  1014
 #define IDC_FOREGROUND                  1015
-#define IDC_CLOSE                       1015
 #define IDC_BIRTHDAYS_LIST              1016
 #define IDC_SHOW_ALL                    1017
 #define IDC_DATE                        1020
@@ -47,7 +43,6 @@
 #define IDC_NOBIRTHDAYS_POPUP           1026
 #define IDC_COMPATIBILITY               1027
 #define IDC_SOUND_NEAR_DAYS_EDIT        1028
-#define IDC_DEFAULT_MODULE              1029
 #define IDC_PREVIEW                     1030
 #define IDC_LEFT_CLICK                  1031
 #define IDC_RIGHT_CLICK                 1032
@@ -70,7 +65,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        129
+#define _APS_NEXT_RESOURCE_VALUE        130
 #define _APS_NEXT_COMMAND_VALUE         40001
 #define _APS_NEXT_CONTROL_VALUE         1048
 #define _APS_NEXT_SYMED_VALUE           101

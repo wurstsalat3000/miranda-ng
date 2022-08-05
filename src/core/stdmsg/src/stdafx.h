@@ -143,7 +143,9 @@ struct GlobalLogSettings : public GlobalLogSettingsBase
 {
 	int iX, iY;
 	int iSplitterX, iSplitterY;
+	
 	bool bTabsEnable, bTabsAtBottom, bTabCloseOnDblClick;
+	bool bAddColonToAutoComplete;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -218,8 +220,5 @@ SESSION_INFO* SM_GetNextWindow(SESSION_INFO *si);
 
 // options.cpp
 void AddIcons(void);
-
-// tools.cpp
-void SetButtonsPos(HWND hwndDlg, bool bIsChat);
 
 #pragma comment(lib,"comctl32.lib")

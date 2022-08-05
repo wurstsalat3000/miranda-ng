@@ -91,7 +91,6 @@ CJabberProto::CJabberProto(const char *aProtoName, const wchar_t *aUserName) :
 	m_bBsDirectManual(this, "BsDirectManual", false),
 	m_bBsProxyManual(this, "BsProxyManual", false),
 	m_bDisable3920auth(this, "Disable3920auth", false),
-	m_bDisableFrame(this, "DisableFrame", true),
 	m_bEnableAvatars(this, "EnableAvatars", true),
 	m_bEnableCarbons(this, "EnableCarbons", true),
 	m_bEnableChatStates(this, "EnableChatStates", true),
@@ -199,7 +198,6 @@ CJabberProto::CJabberProto(const char *aProtoName, const wchar_t *aUserName) :
 	m_adhocManager.FillDefaultNodes();
 
 	UpdateFeatHash();
-	AddDefaultCaps();
 
 	IconsInit();
 
@@ -252,8 +250,6 @@ CJabberProto::~CJabberProto()
 	if (m_hPopupClass)
 		Popup_UnregisterClass(m_hPopupClass);
 
-	delete m_pInfoFrame;
-
 	DestroyHookableEvent(m_hEventNudge);
 	DestroyHookableEvent(m_hEventXStatusIconChanged);
 	DestroyHookableEvent(m_hEventXStatusChanged);
@@ -290,7 +286,6 @@ void CJabberProto::OnModulesLoaded()
 	XStatusInit();
 	m_pepServices.InitGui();
 
-	InitInfoFrame();
 	InitPopups();
 	GlobalMenuInit();
 
@@ -371,7 +366,7 @@ MCONTACT CJabberProto::AddToListByJID(const char *newJid, uint32_t flags)
 
 	MCONTACT hContact = DBCreateContact(newJid, nullptr, true, false);
 	if (flags & PALF_TEMPORARY)
-		Contact_Hide(hContact);
+		Contact::Hide(hContact);
 
 	return hContact;
 }
@@ -431,7 +426,7 @@ int CJabberProto::Authorize(MEVENT hDbEvent)
 			if (MCONTACT hContact = AddToListByJID(blob.get_email(), 0)) {
 				// Trigger actual add by removing the "NotOnList" added by AddToListByJID()
 				// See AddToListByJID() and JabberDbSettingChanged().
-				Contact_PutOnList(hContact);
+				Contact::PutOnList(hContact);
 			}
 		}
 	}
@@ -1042,7 +1037,6 @@ int CJabberProto::SetStatus(int iNewStatus)
 				m_StrmMgmt.SendAck();
 			m_ThreadInfo->send("</stream:stream>");
 			m_ThreadInfo->shutdown();
-			RebuildInfoFrame();
 		}
 
 		m_iStatus = m_iDesiredStatus = ID_STATUS_OFFLINE;
@@ -1052,8 +1046,6 @@ int CJabberProto::SetStatus(int iNewStatus)
 		m_iStatus = ID_STATUS_CONNECTING;
 		ProtoBroadcastAck(0, ACKTYPE_STATUS, ACKRESULT_SUCCESS, (HANDLE)oldStatus, m_iStatus);
 		ForkThread((MyThreadFunc)&CJabberProto::ServerThread, nullptr);
-
-		RebuildInfoFrame();
 	}
 	else if (m_bJabberOnline)
 		SetServerStatus(iNewStatus);
@@ -1201,24 +1193,4 @@ int CJabberProto::UserIsTyping(MCONTACT hContact, int type)
 	}
 
 	return 0;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////
-// InfoFrame events
-
-void CJabberProto::InfoFrame_OnSetup(CJabberInfoFrame_Event*)
-{
-	OnMenuOptions(0, 0);
-}
-
-void CJabberProto::InfoFrame_OnTransport(CJabberInfoFrame_Event *evt)
-{
-	if (evt->m_event == CJabberInfoFrame_Event::CLICK) {
-		MCONTACT hContact = (MCONTACT)evt->m_pUserData;
-		HMENU hContactMenu = Menu_BuildContactMenu(hContact);
-		POINT pt;
-		GetCursorPos(&pt);
-		int res = TrackPopupMenu(hContactMenu, TPM_RETURNCMD, pt.x, pt.y, 0, g_clistApi.hwndContactList, nullptr);
-		Clist_MenuProcessCommand(res, MPCF_CONTACTMENU, hContact);
-	}
 }

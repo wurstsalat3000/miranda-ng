@@ -52,13 +52,9 @@ int CIcqProto::OnUserInfoInit(WPARAM wParam, LPARAM hContact)
 		return 0;
 
 	USERINFOPAGE uip = {};
-	uip.flags = ODPF_UNICODE;
-	if (hContact == 0) {
-		uip.flags |= ODPF_DONTTRANSLATE;
-		uip.szTitle.w = m_tszUserName;
-	}
-	else uip.szTitle.w = L"ICQ";
-
+	uip.flags = ODPF_UNICODE | ODPF_USERINFOTAB | ODPF_DONTTRANSLATE | ODPF_ICON;
+	uip.dwInitParam = (LPARAM)Skin_GetProtoIcon(m_szModuleName, ID_STATUS_ONLINE);
+	uip.szTitle.w = L"ICQ";
 	uip.position = -1900000000;
 	uip.pDialog = new IcqUserInfoDlg(this);
 	g_plugin.addUserInfo(wParam, &uip);
