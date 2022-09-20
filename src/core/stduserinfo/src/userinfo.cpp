@@ -129,17 +129,8 @@ class CUserInfoDlg : public CDlgBase
 		if (items.getCount() == 0)
 			return;
 
-		HTREEITEM hParent;
-		{
-			TVINSERTSTRUCT tvis = {};
-			tvis.hInsertAfter = TVI_LAST;
-			tvis.item.lParam = (LPARAM)items[0];
-			tvis.item.iImage = tvis.item.iSelectedImage = iFolderImage;
-			tvis.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_STATE | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
-			tvis.item.state = tvis.item.stateMask = TVIS_EXPANDED;
-			tvis.item.pszText = pwszRoot;
-			hParent = m_tree.InsertItem(&tvis);
-		}
+		HTREEITEM hParent = nullptr;
+		const wchar_t *pwszPrevGroup = nullptr;
 
 		for (auto &it : items) {
 			int iImage = 1;
@@ -149,6 +140,18 @@ class CUserInfoDlg : public CDlgBase
 					iImage = ImageList_AddIcon(m_imageList, hIcon);
 					IcoLib_ReleaseIcon(hIcon);
 				}
+			}
+
+			if (hParent == nullptr || (!hContact && mir_wstrcmp(pwszPrevGroup, it->pwszGroup))) {
+				TVINSERTSTRUCT tvis = {};
+				tvis.hInsertAfter = TVI_LAST;
+				tvis.item.lParam = (LPARAM)it;
+				tvis.item.iImage = tvis.item.iSelectedImage = (it->pwszGroup == 0) ? iFolderImage : iImage;
+				tvis.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_STATE | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+				tvis.item.state = tvis.item.stateMask = TVIS_EXPANDED;
+				tvis.item.pszText = (it->pwszGroup == 0) ? pwszRoot : it->pwszGroup;
+				hParent = m_tree.InsertItem(&tvis);
+				pwszPrevGroup = it->pwszGroup;
 			}
 
 			TVINSERTSTRUCT tvis;
@@ -173,6 +176,15 @@ class CUserInfoDlg : public CDlgBase
 
 	void BuildTree()
 	{
+		m_tree.SendMsg(WM_SETREDRAW, FALSE, 0);
+
+		if (m_pCurrent) {
+			SaveLocation();
+			m_tree.DeleteAllItems();
+			m_pages.destroy();
+			m_pCurrent = nullptr;
+		}
+
 		if (m_imageList)
 			ImageList_Destroy(m_imageList);
 		m_imageList = ImageList_Create(16, 16, ILC_MASK | ILC_COLOR32, 2, 1);
@@ -198,6 +210,10 @@ class CUserInfoDlg : public CDlgBase
 				}
 			}
 		}
+
+		m_tree.SendMsg(WM_SETREDRAW, TRUE, 0);
+		m_tree.SelectItem(m_pCurrent->hItem);
+		SetFocus(m_tree.GetHwnd());
 	}
 
 	void CheckOnline()
@@ -241,6 +257,20 @@ class CUserInfoDlg : public CDlgBase
 		ClientToScreen(m_hwnd, &pt);
 		OffsetRect(&rc, -pt.x, -pt.y);
 		SetWindowPos(m_pCurrent->hwnd, HWND_TOP, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, 0);
+	}
+
+	void SaveLocation()
+	{
+		if (m_pCurrent) {
+			wchar_t name[128];
+			TVITEMEX tvi;
+			tvi.mask = TVIF_TEXT;
+			tvi.hItem = m_pCurrent->hItem;
+			tvi.pszText = name;
+			tvi.cchTextMax = _countof(name);
+			m_tree.GetItem(&tvi);
+			g_plugin.setWString("LastTab", name);
+		}
 	}
 
 	CCtrlBase m_place;
@@ -292,10 +322,6 @@ public:
 		BuildTree();
 
 		//////////////////////////////////////////////////////////////////////
-
-		m_tree.SelectItem(m_pCurrent->hItem);
-
-		//////////////////////////////////////////////////////////////////////
 		m_updateAnimFrame = 0;
 		GetDlgItemText(m_hwnd, IDC_UPDATING, m_szUpdating, _countof(m_szUpdating));
 		CheckOnline();
@@ -305,7 +331,6 @@ public:
 		}
 		else ShowWindow(GetDlgItem(m_hwnd, IDC_UPDATING), SW_HIDE);
 
-		SetFocus(m_tree.GetHwnd());
 		return true;
 	}
 
@@ -359,16 +384,7 @@ public:
 
 	void OnDestroy() override
 	{
-		if (m_pCurrent) {
-			wchar_t name[128];
-			TVITEMEX tvi;
-			tvi.mask = TVIF_TEXT;
-			tvi.hItem = m_pCurrent->hItem;
-			tvi.pszText = name;
-			tvi.cchTextMax = _countof(name);
-			m_tree.GetItem(&tvi);
-			g_plugin.setWString("LastTab", name);
-		}
+		SaveLocation();
 
 		if (m_imageList)
 			ImageList_Destroy(m_imageList);
@@ -438,7 +454,11 @@ public:
 				if (ack->hContact != m_hContact && !(m_bIsMeta && db_mc_getMeta(ack->hContact) == m_hContact))
 					break;
 
+				if (ack->result == ACKRESULT_SUCCESS)
+					BuildTree();
+
 				SendMessage(m_hwnd, PSM_FORCECHANGED, 0, 0);
+
 				/* if they're not gonna send any more ACK's don't let that mean we should crash */
 				if (!ack->hProcess && !ack->lParam) {
 					ShowWindow(GetDlgItem(m_hwnd, IDC_UPDATING), SW_HIDE);
@@ -620,7 +640,6 @@ static IconItem iconList[] =
 	{ LPGEN("Contact"),  "contact",  IDI_CONTACT  },
 	{ LPGEN("Location"), "location", IDI_LOCATION },
 	{ LPGEN("Notes"),    "notes",    IDI_NOTES    },
-	{ LPGEN("Page"),     "Page",     IDI_ITEM     },
 	{ LPGEN("Summary"),  "summary",  IDI_SUMMARY  },
 	{ LPGEN("Work"),     "work",     IDI_WORK     },
 };

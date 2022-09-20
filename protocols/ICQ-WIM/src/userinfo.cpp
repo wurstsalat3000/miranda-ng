@@ -34,11 +34,12 @@ struct IcqUserInfoDlg : public CUserInfoPageDlg
 	{
 		SetDlgItemTextW(m_hwnd, IDC_UIN, ppro->GetUserId(m_hContact));
 		SetDlgItemTextW(m_hwnd, IDC_NICK, ppro->getMStringW(m_hContact, DB_KEY_ICQNICK));
+		SetDlgItemTextW(m_hwnd, IDC_PHONE, ppro->getMStringW(m_hContact, DB_KEY_PHONE));
 
-		SetDlgItemTextA(m_hwnd, IDC_IDLETIME, time2text(ppro->getDword(m_hContact, DB_KEY_IDLE)));
-		SetDlgItemTextA(m_hwnd, IDC_LASTSEEN, time2text(ppro->getDword(m_hContact, DB_KEY_LASTSEEN)));
-		SetDlgItemTextA(m_hwnd, IDC_MEMBERSINCE, time2text(ppro->getDword(m_hContact, DB_KEY_MEMBERSINCE)));
-		SetDlgItemTextA(m_hwnd, IDC_ONLINESINCE, time2text(time(0) - ppro->getDword(m_hContact, DB_KEY_ONLINETS)));
+		SetDlgItemTextW(m_hwnd, IDC_IDLETIME, time2text(ppro->getDword(m_hContact, DB_KEY_IDLE)));
+		SetDlgItemTextW(m_hwnd, IDC_LASTSEEN, time2text(ppro->getDword(m_hContact, DB_KEY_LASTSEEN)));
+		SetDlgItemTextW(m_hwnd, IDC_MEMBERSINCE, time2text(ppro->getDword(m_hContact, DB_KEY_MEMBERSINCE)));
+		SetDlgItemTextW(m_hwnd, IDC_ONLINESINCE, time2text(time(0) - ppro->getDword(m_hContact, DB_KEY_ONLINETS)));
 		return false;
 	}
 };
@@ -55,6 +56,7 @@ int CIcqProto::OnUserInfoInit(WPARAM wParam, LPARAM hContact)
 	uip.flags = ODPF_UNICODE | ODPF_USERINFOTAB | ODPF_DONTTRANSLATE | ODPF_ICON;
 	uip.dwInitParam = (LPARAM)Skin_GetProtoIcon(m_szModuleName, ID_STATUS_ONLINE);
 	uip.szTitle.w = L"ICQ";
+	uip.szGroup.w = m_tszUserName;
 	uip.position = -1900000000;
 	uip.pDialog = new IcqUserInfoDlg(this);
 	g_plugin.addUserInfo(wParam, &uip);

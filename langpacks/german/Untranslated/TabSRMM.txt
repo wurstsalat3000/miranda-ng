@@ -1,2 +1,8 @@
+<<<<<<< HEAD
 [is now offline (was online)]
 [Sample error message]
+=======
+[Text for autocomplete]
+[Split into files (in KB)]
+[Colorize nicknames in member list (you need to adjust colors)]
+>>>>>>> 780c26db40 (langpacks: update)

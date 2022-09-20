@@ -207,12 +207,6 @@ Edad:
 [Incoming image]
 
 ;file \protocols\Gadu-Gadu\src\dialogs.cpp
-[Male]
-Masculino
-[Female]
-Femenino
-[<not specified>]
-<no especificado>
 [<Last Status>]
 
 [System tray icon]
@@ -226,10 +220,6 @@ Icono de la bandeja de sistema
 [Your password will be sent to your registration e-mail.\nDo you want to continue?]
 
 [You should disconnect before making any permanent changes with your account.\nDo you want to disconnect now?]
-
-[Your details has been uploaded to the public directory.]
-
-[You have to be logged in before you can change your details.]
 
 [Network]
 Red
@@ -268,6 +258,10 @@ Lista de contactos
 
 [Gadu-Gadu Number]
 
+[Female]
+Femenino
+[Male]
+Masculino
 ;file \protocols\Gadu-Gadu\src\groupchat.cpp
 [Open &conference...]
 
@@ -428,6 +422,13 @@ Errores
 [Token retrieval failed because of error:\n\t%s]
 
 [Could not load token image.]
+
+;file \protocols\Gadu-Gadu\src\userinfo.cpp
+[<not specified>]
+<no especificado>
+[Your details has been uploaded to the public directory.]
+
+[You have to be logged in before you can change your details.]
 
 ;file \protocols\Gadu-Gadu\src\userutils.cpp
 [Cannot register new account because of error:\n\t%s]

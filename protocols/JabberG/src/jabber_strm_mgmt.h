@@ -38,10 +38,15 @@ class strm_mgmt
 
 	CJabberProto *proto;
 	TiXmlDocument xmlStorage;
-	uint32_t m_nStrmMgmtSrvHCount, m_nStrmMgmtLocalHCount, m_nStrmMgmtLocalSCount, m_nStrmMgmtResumeMaxSeconds;
-	const uint32_t m_nStrmMgmtCacheSize = 10;
-	bool m_bStrmMgmtPendingEnable = false, m_bStrmMgmtEnabled = false, m_bStrmMgmtResumeSupported = false, bSessionResumed = false;
-	std::string m_sStrmMgmtResumeId;
+
+	bool m_bEnabled;
+	bool m_bPendingEnable;
+	bool m_bResumeSupported = false;
+	bool m_bSessionResumed = false;
+
+	int m_nSrvHCount, m_nLocalHCount, m_nLocalSCount, m_nResumeMaxSeconds;
+	time_t m_tConnLostTime;
+	std::string m_sResumeId;
 	std::list<TiXmlElement*> NodeCache;
 
 public:
@@ -49,6 +54,7 @@ public:
 	void EnableStrmMgmt();
 	void HandleOutgoingNode(TiXmlElement *node);
 	bool HandleIncommingNode(const TiXmlElement *node);
+	void HandleConnectionLost();
 	void OnProcessEnabled(const TiXmlElement *node, ThreadData *info);
 	void OnProcessResumed(const TiXmlElement *node, ThreadData *info);
 	void OnProcessFailed(const TiXmlElement *node, ThreadData * info);

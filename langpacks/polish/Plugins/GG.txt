@@ -207,12 +207,6 @@ Jesteś zalogowany w innym miejscu
 [Incoming image]
 Przychodzący obrazek
 ;file \protocols\Gadu-Gadu\src\dialogs.cpp
-[Male]
-Mężczyzna
-[Female]
-Kobieta
-[<not specified>]
-<nieokreślone>
 [<Last Status>]
 <Ostatni status>
 [System tray icon]
@@ -227,10 +221,6 @@ Musisz najpierw wpisać w konfiguracji swój e-mail rejestracyjny.
 Twoje hasło zostanie wysłane na twój e-mail rejestracyjny.\nChcesz kontynuować ?
 [You should disconnect before making any permanent changes with your account.\nDo you want to disconnect now?]
 Powinieneś się rozłączyć przed wszelkimi trwałymi zmianami twojego konta.\nCzy chcesz się rozłączyć ?
-[Your details has been uploaded to the public directory.]
-Twoje dane zostały wysłane do katalogu publicznego.
-[You have to be logged in before you can change your details.]
-Musisz być zalogowany, żeby zmienić swoje dane.
 [Network]
 Protokoły
 [General]
@@ -268,6 +258,10 @@ Lista kontaktów
 Obrazki
 [Gadu-Gadu Number]
 Numer Gadu-Gadu
+[Female]
+Kobieta
+[Male]
+Mężczyzna
 ;file \protocols\Gadu-Gadu\src\groupchat.cpp
 [Open &conference...]
 Otwórz &konferencję...
@@ -429,6 +423,13 @@ Równoległe &sesje
 Nie można było pobrać tokena z powodu błędu:\n\t%s
 [Could not load token image.]
 Nie można było załadować obrazka z tokenem.
+;file \protocols\Gadu-Gadu\src\userinfo.cpp
+[<not specified>]
+<nieokreślone>
+[Your details has been uploaded to the public directory.]
+Twoje dane zostały wysłane do katalogu publicznego.
+[You have to be logged in before you can change your details.]
+Musisz być zalogowany, żeby zmienić swoje dane.
 ;file \protocols\Gadu-Gadu\src\userutils.cpp
 [Cannot register new account because of error:\n\t%s]
 Nie można zarejestrować konta z powodu błędu:\n\t%s

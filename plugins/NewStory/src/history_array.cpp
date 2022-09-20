@@ -220,7 +220,7 @@ void HistoryArray::addChatEvent(SESSION_INFO *si, LOGINFO *lin)
 	bool bTextUsed = Chat_GetDefaultEventDescr(si, lin, wszText);
 	if (!bTextUsed && lin->ptszText) {
 		if (!wszText.IsEmpty())
-			wszText.Append(L": ");
+			wszText.AppendChar(' ');
 		wszText.Append(g_chatApi.RemoveFormatting(lin->ptszText));
 	}
 

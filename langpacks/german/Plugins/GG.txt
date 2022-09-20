@@ -207,12 +207,6 @@ Sie sind von einem anderen Ort aus angemeldet
 [Incoming image]
 Eingehendes Bild
 ;file \protocols\Gadu-Gadu\src\dialogs.cpp
-[Male]
-männlich
-[Female]
-weiblich
-[<not specified>]
-<nicht angegeben>
 [<Last Status>]
 <Letzter Status>
 [System tray icon]
@@ -227,10 +221,6 @@ Fur die Anmeldung mussen Sie ihre registrierte E-Mail-Adresse erst angeben.
 Ihr Passwort wird zur Ihrer Registrierungs-E-Mail gesendet.\nMöchten Sie fortfahren?
 [You should disconnect before making any permanent changes with your account.\nDo you want to disconnect now?]
 Sie sollten die Verbindung trennen bevor sie permanente Änderungen mit ihrem Account vornehmen.\nWollen sie nun die Verbindung trennen?
-[Your details has been uploaded to the public directory.]
-Ihre Details wurden in das öffentliche Verzeichnis hochgeladen.
-[You have to be logged in before you can change your details.]
-Sie müssen sich einloggen bevor sie ihre Details ändern können.
 [Network]
 Netzwerk
 [General]
@@ -268,6 +258,10 @@ Kontaktliste
 Bilder
 [Gadu-Gadu Number]
 Gadu-Gadu-Nummer
+[Female]
+weiblich
+[Male]
+männlich
 ;file \protocols\Gadu-Gadu\src\groupchat.cpp
 [Open &conference...]
 &Konferenz öffnen...
@@ -429,6 +423,13 @@ Gleichzeitige &Sitzungen
 Zeichenabruf ist ggfs. fehlgeschlagen, Fehler:\n\t%s
 [Could not load token image.]
 Konnte kein 'Token'-Bild laden.
+;file \protocols\Gadu-Gadu\src\userinfo.cpp
+[<not specified>]
+<nicht angegeben>
+[Your details has been uploaded to the public directory.]
+Ihre Details wurden in das öffentliche Verzeichnis hochgeladen.
+[You have to be logged in before you can change your details.]
+Sie müssen sich einloggen bevor sie ihre Details ändern können.
 ;file \protocols\Gadu-Gadu\src\userutils.cpp
 [Cannot register new account because of error:\n\t%s]
 Es konnte kein neues Konto registriert werden, Fehler:\n\t%s

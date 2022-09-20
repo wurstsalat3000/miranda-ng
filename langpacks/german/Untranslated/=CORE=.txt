@@ -1,1 +1,5 @@
+<<<<<<< HEAD
 [Plugin %S cannot be unloaded because the core plugin is missing]
+=======
+[Page]
+>>>>>>> 780c26db40 (langpacks: update)

@@ -98,13 +98,12 @@ class CSoundOptionsDlg : public CDlgBase
 		ShowWindow(GetDlgItem(m_hwnd, IDC_LOCATION), iCommand);
 		ShowWindow(GetDlgItem(m_hwnd, IDC_CHANGE), iCommand);
 		ShowWindow(GetDlgItem(m_hwnd, IDC_PREVIEW), iCommand);
-		ShowWindow(GetDlgItem(m_hwnd, IDC_GETMORE), iCommand);
 	}
 
-	CCtrlButton btnPreview, btnChange;
 	CCtrlCheck chkSounds;
-	CCtrlHyperlink linkGetMore;
+	CCtrlButton btnPreview, btnChange;
 	CCtrlTreeView m_tree;
+	CCtrlHyperlink linkGetMore;
 
 public:
 	CSoundOptionsDlg() :
@@ -113,7 +112,7 @@ public:
 		chkSounds(this, IDC_ENABLESOUNDS),
 		btnChange(this, IDC_CHANGE),
 		btnPreview(this, IDC_PREVIEW),
-		linkGetMore(this, IDC_GETMORE, "https://miranda-ng.org/addons/category/14")
+		linkGetMore(this, IDC_GETMORE, "https://miranda-ng.org/tags/sounds")
 	{
 		btnChange.OnClick = Callback(this, &CSoundOptionsDlg::onClick_Change);
 		btnPreview.OnClick = Callback(this, &CSoundOptionsDlg::onClick_Preview);
@@ -236,7 +235,7 @@ public:
 		OPENFILENAME ofn;
 		memset(&ofn, 0, sizeof(ofn));
 		if (GetModuleHandle(L"bass_interface.dll"))
-			mir_snwprintf(filter, L"%s (*.wav, *.mp3, *.ogg)%c*.wav;*.mp3;*.ogg%c%s (*)%c*%c", TranslateT("Sound files"), 0, 0, TranslateT("All files"), 0, 0);
+			mir_snwprintf(filter, L"%s (*.wav,*.mp3,*.ogg)%c*.wav;*.mp3;*.ogg%c%s (*)%c*%c", TranslateT("Sound files"), 0, 0, TranslateT("All files"), 0, 0);
 		else
 			mir_snwprintf(filter, L"%s (*.wav)%c*.wav%c%s (*)%c*%c", TranslateT("WAV files"), 0, 0, TranslateT("All files"), 0, 0);
 		ofn.lStructSize = OPENFILENAME_SIZE_VERSION_400;
@@ -364,7 +363,7 @@ static int SkinOptionsInit(WPARAM wParam, LPARAM)
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-MIR_APP_DLL(void) KillModuleSounds(HPLUGIN pPlugin)
+void KillModuleSounds(CMPluginBase *pPlugin)
 {
 	bool bFound = false;
 
@@ -409,14 +408,30 @@ int CMPluginBase::addSound(const char *pszName, const wchar_t *pwszSection, cons
 static int Skin_PlaySoundDefault(WPARAM wParam, LPARAM lParam)
 {
 	wchar_t *pszFile = (wchar_t*)lParam;
+<<<<<<< HEAD
 	if (pszFile && (db_get_b(0, "Skin", "UseSound", 0) || (int)wParam == 1))
 		PlaySound(pszFile, nullptr, SND_ASYNC | SND_FILENAME | SND_NOSTOP);
+=======
+	if (db_get_b(0, "Skin", "UseSound", 0) || (wParam & SPS_FORCEPLAY) != 0) {
+		int flags;
+		if (pszFile) {
+			flags = SND_ASYNC | SND_FILENAME | SND_NOSTOP;
+			if (wParam & SPS_LOOP)
+				flags |= SND_LOOP;
+		}
+		else flags = 0;
+
+		if (!PlaySoundW(pszFile, nullptr, flags))
+			return 1;
+	}
+>>>>>>> 0c4cc90c25 (Skin_PlaySound / Skin_PlaySoundFile to return error value)
 
 	return 0;
 }
 
 MIR_APP_DLL(int) Skin_PlaySoundFile(const wchar_t *pwszFileName)
 {
+<<<<<<< HEAD
 	if (pwszFileName == nullptr)
 		return 1;
 
@@ -424,6 +439,15 @@ MIR_APP_DLL(int) Skin_PlaySoundFile(const wchar_t *pwszFileName)
 	PathToAbsoluteW(pwszFileName, tszFull);
 	NotifyEventHooks(hPlayEvent, 0, (LPARAM)tszFull);
 	return 0;
+=======
+	if (pwszFileName) {
+		wchar_t tszFull[MAX_PATH];
+		PathToAbsoluteW(pwszFileName, tszFull);
+		return NotifyEventHooks(hPlayEvent, flags, (LPARAM)tszFull);
+	}
+
+	return NotifyEventHooks(hPlayEvent, flags, 0);
+>>>>>>> 0c4cc90c25 (Skin_PlaySound / Skin_PlaySoundFile to return error value)
 }
 
 MIR_APP_DLL(int) Skin_PlaySound(const char *pszSoundName)
@@ -442,8 +466,12 @@ MIR_APP_DLL(int) Skin_PlaySound(const char *pszSoundName)
 	if (wszFilePath == nullptr)
 		return 1;
 
+<<<<<<< HEAD
 	Skin_PlaySoundFile(wszFilePath);
 	return 0;
+=======
+	return Skin_PlaySoundFile(wszFilePath, flags);
+>>>>>>> 0c4cc90c25 (Skin_PlaySound / Skin_PlaySoundFile to return error value)
 }
 
 int LoadSkinSounds(void)

@@ -809,6 +809,7 @@ struct CJabberProto : public PROTO<CJabberProto>, public IJabberInterface
 	bool       m_isSessionAvailable, m_isAuthAvailable;
 	
 	void       __cdecl ServerThread(JABBER_CONN_DATA *info);
+	bool       ServerThreadStub(ThreadData &info);
 		        
 	void       OnProcessFailure(const TiXmlElement *node, ThreadData *info);
 	void       OnProcessFailed(const TiXmlElement *node, ThreadData *info);
@@ -884,7 +885,8 @@ struct CJabberProto : public PROTO<CJabberProto>, public IJabberInterface
 			     
 	int        SendGetVcard(MCONTACT hContact);
 	void       AppendVcardFromDB(TiXmlElement *n, char* tag, char* key);
-	void       SetServerVcard(BOOL bPhotoChanged, wchar_t* szPhotoFileName);
+	void       AppendPhotoToVcard(TiXmlElement *n, bool bPhotoChanged, const wchar_t *szPhotoFileName, MCONTACT hContact = 0);
+	void       SetServerVcard(bool bPhotoChanged, wchar_t* szPhotoFileName);
 	void       SaveVcardToDB(HWND hwndPage, int iPage);
 
 	//---- jabber_xml.c ------------------------------------------------------------------

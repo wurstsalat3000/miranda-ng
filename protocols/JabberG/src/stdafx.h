@@ -365,7 +365,7 @@ struct ThreadData
 
 	// features & registration
 	bool     bIsReg;
-	bool     reg_done, bIsSessionAvailable;
+	bool     reg_done;
 	bool     bBookmarksLoaded;
 	uint32_t	dwLoginRqs;
 

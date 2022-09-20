@@ -34,7 +34,7 @@ enum {
 
 	IDM_ROLE, IDM_AFFLTN,
 
-	IDM_CONFIG, IDM_NICK, IDM_DESTROY, IDM_INVITE, IDM_BOOKMARKS, IDM_LEAVE, IDM_TOPIC,
+	IDM_CONFIG, IDM_NICK, IDM_AVATAR, IDM_DESTROY, IDM_INVITE, IDM_BOOKMARKS, IDM_LEAVE, IDM_TOPIC,
 	IDM_LST_PARTICIPANT, IDM_LST_MODERATOR,
 	IDM_LST_MEMBER, IDM_LST_ADMIN, IDM_LST_OWNER, IDM_LST_BAN,
 
@@ -155,6 +155,12 @@ int CJabberProto::GcInit(JABBER_LIST_ITEM *item)
 
 	Chat_Control(m_szModuleName, wszJid, (item->bAutoJoin && m_bAutoJoinHidden) ? WINDOW_HIDDEN : SESSION_INITDONE);
 	Chat_Control(m_szModuleName, wszJid, SESSION_ONLINE);
+
+	time_t lastDate = getDword(si->hContact, "LastGetVcard"), now = time(0);
+	if (now - lastDate > 24 * 60 * 60) {
+		SendGetVcard(si->hContact);
+		setDword(si->hContact, "LastGetVcard", now);
+	}
 	return 0;
 }
 
@@ -388,6 +394,7 @@ static gc_item sttLogListItems[] =
 	{ LPGENW("&Room options"), 0, MENU_NEWPOPUP },
 	{ LPGENW("View/change &topic"), IDM_TOPIC, MENU_POPUPITEM },
 	{ LPGENW("Add to &bookmarks"), IDM_BOOKMARKS, MENU_POPUPITEM },
+	{ LPGENW("Change &avatar"), IDM_AVATAR, MENU_POPUPITEM },
 	{ LPGENW("&Configure..."), IDM_CONFIG, MENU_POPUPITEM },
 	{ LPGENW("&Destroy room"), IDM_DESTROY, MENU_POPUPITEM },
 
@@ -465,6 +472,10 @@ static gc_item sttListItems[] =
 	{ LPGENW("Copy in-room JID"), IDM_CPY_INROOMJID, MENU_ITEM }
 };
 
+static uint32_t sttModeratorItems[] = { IDM_LST_PARTICIPANT, 0 };
+static uint32_t sttAdminItems[] = { IDM_LST_MODERATOR, IDM_LST_MEMBER, IDM_LST_ADMIN, IDM_LST_OWNER, IDM_LST_BAN, 0 };
+static uint32_t sttOwnerItems[] = { IDM_CONFIG, IDM_DESTROY, IDM_AVATAR, 0 };
+
 int CJabberProto::JabberGcMenuHook(WPARAM, LPARAM lParam)
 {
 	GCMENUITEMS* gcmi = (GCMENUITEMS*)lParam;
@@ -488,10 +499,6 @@ int CJabberProto::JabberGcMenuHook(WPARAM, LPARAM lParam)
 
 	if (gcmi->Type == MENU_ON_LOG) {
 		static wchar_t url_buf[1024] = { 0 };
-
-		static uint32_t sttModeratorItems[] = { IDM_LST_PARTICIPANT, 0 };
-		static uint32_t sttAdminItems[] = { IDM_LST_MODERATOR, IDM_LST_MEMBER, IDM_LST_ADMIN, IDM_LST_OWNER, IDM_LST_BAN, 0 };
-		static uint32_t sttOwnerItems[] = { IDM_CONFIG, IDM_DESTROY, 0 };
 
 		sttSetupGcMenuItem(_countof(sttLogListItems), sttLogListItems, 0, FALSE);
 
@@ -1192,6 +1199,21 @@ static void sttLogListHook(CJabberProto *ppro, JABBER_LIST_ITEM *item, GCHOOK *g
 
 	case IDM_LST_OWNER:
 		ppro->AdminGet(roomJid, JABBER_FEAT_MUC_ADMIN, "affiliation", "owner", &CJabberProto::OnIqResultMucGetOwnerList, gch->si->pDlg);
+		break;
+
+	case IDM_AVATAR:
+		if (CallService(MS_AV_SETAVATARW, gch->si->hContact, 0) == 1) {
+			CMStringW wszAvaPath(db_get_wsm(gch->si->hContact, "ContactPhoto", "File"));
+			XmlNodeIq iq(ppro->AddIQ(nullptr, JABBER_IQ_TYPE_SET, roomJid));
+			
+			TiXmlElement *v = iq << XCHILDNS("vCard", JABBER_FEAT_VCARD_TEMP);
+			ppro->AppendPhotoToVcard(v, true, wszAvaPath.GetBuffer(), gch->si->hContact);
+			ppro->m_ThreadInfo->send(iq);
+
+			wchar_t szAvatarName[MAX_PATH];
+			ppro->GetAvatarFileName(gch->si->hContact, szAvatarName, _countof(szAvatarName));
+			CallService(MS_AV_SETAVATARW, gch->si->hContact, (LPARAM)szAvatarName);
+		}
 		break;
 
 	case IDM_TOPIC:

@@ -350,7 +350,7 @@ BOOL DoPopup(SESSION_INFO *si, GCEVENT *gce)
 
 	if (!bTextUsed && lin.ptszText) {
 		if (!wszText.IsEmpty())
-			wszText.Append(L": ");
+			wszText.AppendChar(' ');
 		wszText.Append(RemoveFormatting(gce->pszText.w));
 	}
 
@@ -550,7 +550,7 @@ BOOL LogToFile(SESSION_INFO *si, GCEVENT *gce)
 
 	if (!bTextUsed && lin.ptszText) {
 		if (!buf.IsEmpty())
-			buf.Append(L": ");
+			buf.AppendChar(' ');
 		buf.Append(RemoveFormatting(gce->pszText.w));
 	}
 

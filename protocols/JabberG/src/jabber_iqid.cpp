@@ -260,8 +260,8 @@ void CJabberProto::OnLoggedIn()
 	m_ThreadInfo->dwLoginRqs = 0;
 
 	// XEP-0083 support
-	if (!(m_StrmMgmt.IsSessionResumed()))
-	{
+//	if (!(m_StrmMgmt.IsSessionResumed()))
+//	{
 		// ugly hack to prevent hangup during login process
 		CJabberIqInfo *pIqInfo = AddIQ(&CJabberProto::OnIqResultNestedRosterGroups, JABBER_IQ_TYPE_GET);
 		pIqInfo->SetTimeout(30000);
@@ -276,7 +276,7 @@ void CJabberProto::OnLoggedIn()
 		m_ThreadInfo->send(
 			XmlNodeIq(AddIQ(&CJabberProto::OnIqResultDiscoBookmarks, JABBER_IQ_TYPE_GET))
 			<< XQUERY(JABBER_FEAT_PRIVATE_STORAGE) << XCHILDNS("storage", "storage:bookmarks"));
-	}
+//	}
 
 	m_bPepSupported = false;
 
@@ -389,6 +389,7 @@ void CJabberProto::OnIqResultBind(const TiXmlElement *iqNode, CJabberIqInfo *pIn
 {
 	if (!m_ThreadInfo || !iqNode)
 		return;
+
 	if (pInfo->GetIqType() == JABBER_IQ_TYPE_RESULT) {
 		const char *szJid = XmlGetChildText(XmlGetChildByTag(iqNode, "bind", "xmlns", JABBER_FEAT_BIND), "jid");
 		if (szJid) {
@@ -399,12 +400,13 @@ void CJabberProto::OnIqResultBind(const TiXmlElement *iqNode, CJabberIqInfo *pIn
 				strncpy_s(m_ThreadInfo->fullJID, szJid, _TRUNCATE);
 			}
 		}
-		if (m_ThreadInfo->bIsSessionAvailable)
+
+		if (m_isSessionAvailable) {
 			m_ThreadInfo->send(
 				XmlNodeIq(AddIQ(&CJabberProto::OnIqResultSession, JABBER_IQ_TYPE_SET))
 				<< XCHILDNS("session", "urn:ietf:params:xml:ns:xmpp-session"));
-		else
-			OnLoggedIn();
+		}
+		else OnLoggedIn();
 	}
 	else {
 		//rfc3920 page 39
@@ -616,9 +618,12 @@ void CJabberProto::OnIqResultGetVcardPhoto(const TiXmlElement *n, MCONTACT hCont
 		ReportSelfAvatarChanged();
 	}
 	else {
-		ptrA jid(getUStringA(hContact, "jid"));
+		ptrA jid(ContactToJID(hContact));
 		if (jid != nullptr) {
 			JABBER_LIST_ITEM *item = ListGetItemPtr(LIST_ROSTER, jid);
+			if (item == nullptr) 
+				item = ListGetItemPtr(LIST_CHATROOM, jid);
+
 			if (item == nullptr) {
 				item = ListAdd(LIST_VCARD_TEMP, jid); // adding to the temp list to store information about photo
 				if (item != nullptr)
@@ -679,7 +684,8 @@ void CJabberProto::OnIqResultGetVcard(const TiXmlElement *iqNode, CJabberIqInfo*
 	}
 	else {
 		if ((hContact = HContactFromJID(jid)) == 0)
-			return;
+			if ((hContact = ChatRoomHContactFromJID(jid)) == 0)
+				return;
 		debugLogA("Other user's vcard");
 	}
 

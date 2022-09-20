@@ -84,6 +84,7 @@
 #define DB_KEY_ID "aimId"
 #define DB_KEY_IDLE "IdleTS"
 #define DB_KEY_ABOUT "About"
+#define DB_KEY_PHONE "Phone"
 #define DB_KEY_ATOKEN "AToken"
 #define DB_KEY_ICQNICK "IcqNick"
 #define DB_KEY_PHONEREG "PhoneReg"
@@ -102,6 +103,6 @@
 bool IsChat(const CMStringW &aimid);
 
 void RefreshGroups(void);
-char* time2text(time_t time);
+wchar_t* time2text(time_t time);
 
 extern bool g_bSecureIM, g_bMessageState;

@@ -231,7 +231,7 @@ static void AddEventToBuffer(CMStringA &str, LOGSTREAMDATA *streamData)
 		Log_AppendRTF(streamData, !bTextUsed, str, wszCaption);
 	if (!bTextUsed && streamData->lin->ptszText) {
 		if (!wszCaption.IsEmpty())
-			Log_AppendRTF(streamData, false, str, L": ");
+			Log_AppendRTF(streamData, false, str, L" ");
 		Log_AppendRTF(streamData, false, str, streamData->lin->ptszText);
 	}
 }

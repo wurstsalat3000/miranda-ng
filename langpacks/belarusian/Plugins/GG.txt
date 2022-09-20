@@ -207,12 +207,6 @@ Miranda не можа распазнаць імя сервера Gadu-Gadu па 
 [Incoming image]
 Уваходнае паведамленне
 ;file \protocols\Gadu-Gadu\src\dialogs.cpp
-[Male]
-Мужчынскі
-[Female]
-Жаночы
-[<not specified>]
-<не паказана>
 [<Last Status>]
 <Апошні статус>
 [System tray icon]
@@ -227,10 +221,6 @@ Miranda не можа распазнаць імя сервера Gadu-Gadu па 
 Ваш пароль будзе высланы на рэгістрацыйны e-mail.\nПрацягнуць?
 [You should disconnect before making any permanent changes with your account.\nDo you want to disconnect now?]
 Вы павінны адключыцца перад зменай параметраў карыстача.\nВырабіць адключэнне?
-[Your details has been uploaded to the public directory.]
-Ваша інфармацыя была запісаная на агульным каталогу.
-[You have to be logged in before you can change your details.]
-Вы павінны ўвайсці ў сістэму для пераўтварэння дадзеных.
 [Network]
 Сеціва
 [General]
@@ -268,6 +258,10 @@ HTTP невядомая памылка
 Выявы
 [Gadu-Gadu Number]
 Нумар Gadu-Gadu
+[Female]
+Жаночы
+[Male]
+Мужчынскі
 ;file \protocols\Gadu-Gadu\src\groupchat.cpp
 [Open &conference...]
 Адкрыць канферэнцыю...
@@ -429,6 +423,13 @@ IP Адрас
 Маркер не атрыманы з-за памылкі\n\t%s
 [Could not load token image.]
 Не магу загрузіць маркер.
+;file \protocols\Gadu-Gadu\src\userinfo.cpp
+[<not specified>]
+<не паказана>
+[Your details has been uploaded to the public directory.]
+Ваша інфармацыя была запісаная на агульным каталогу.
+[You have to be logged in before you can change your details.]
+Вы павінны ўвайсці ў сістэму для пераўтварэння дадзеных.
 ;file \protocols\Gadu-Gadu\src\userutils.cpp
 [Cannot register new account because of error:\n\t%s]
 Немагчыма зарэгістраваць карыстача з-за памылкі:\n\t%s

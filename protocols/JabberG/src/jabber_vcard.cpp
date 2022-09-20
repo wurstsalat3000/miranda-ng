@@ -43,7 +43,7 @@ int CJabberProto::SendGetVcard(MCONTACT hContact)
 		pInfo = AddIQ(&CJabberProto::OnIqResultGetVcard, JABBER_IQ_TYPE_GET, m_szJabberJID);
 	}
 	else {
-		ptrA jid(getUStringA(hContact, "jid"));
+		ptrA jid(ContactToJID(hContact));
 		if (jid == nullptr)
 			return -1;
 
@@ -878,11 +878,10 @@ void CJabberProto::AppendVcardFromDB(TiXmlElement *n, char *tag, char *key)
 	n << XCHILD(tag, tszValue);
 }
 
-void CJabberProto::SetServerVcard(BOOL bPhotoChanged, wchar_t *szPhotoFileName)
+void CJabberProto::SetServerVcard(bool bPhotoChanged, wchar_t *szPhotoFileName)
 {
 	if (!m_bJabberOnline) return;
 
-	int  i;
 	char idstr[33];
 
 	XmlNodeIq iq(AddIQ(&CJabberProto::OnIqResultSetVcard, JABBER_IQ_TYPE_SET));
@@ -899,7 +898,7 @@ void CJabberProto::SetServerVcard(BOOL bPhotoChanged, wchar_t *szPhotoFileName)
 	AppendVcardFromDB(v, "BDAY", "BirthDate");
 	AppendVcardFromDB(v, "GENDER", "GenderString");
 
-	for (i = 0;; i++) {
+	for (int i = 0;; i++) {
 		mir_snprintf(idstr, "e-mail%d", i);
 		ptrA email(getUStringA(idstr));
 		if (email == nullptr)
@@ -947,7 +946,7 @@ void CJabberProto::SetServerVcard(BOOL bPhotoChanged, wchar_t *szPhotoFileName)
 	AppendVcardFromDB(v, "URL", "Homepage");
 	AppendVcardFromDB(v, "DESC", "About");
 
-	for (i = 0;; i++) {
+	for (int i = 0;; i++) {
 		mir_snprintf(idstr, "Phone%d", i);
 		ptrW phone(getWStringA(idstr));
 		if (phone == nullptr)
@@ -972,70 +971,75 @@ void CJabberProto::SetServerVcard(BOOL bPhotoChanged, wchar_t *szPhotoFileName)
 		if (nFlag & JABBER_VCTEL_PCS)   n << XCHILD("PCS");
 	}
 
-	wchar_t szAvatarName[MAX_PATH], *szFileName;
-	GetAvatarFileName(0, szAvatarName, _countof(szAvatarName));
-	if (bPhotoChanged)
-		szFileName = szPhotoFileName;
-	else
-		szFileName = szAvatarName;
-
-	// Set photo element, also update the global jabberVcardPhotoFileName to reflect the update
-	debugLogW(L"Before update, file name = %s", szFileName);
-	if (szFileName == nullptr || szFileName[0] == 0) {
-		v << XCHILD("PHOTO");
-		DeleteFile(szAvatarName);
-		delSetting("AvatarHash");
-	}
-	else {
-		debugLogW(L"Saving picture from %s", szFileName);
-
-		struct _stat st;
-		if (_wstat(szFileName, &st) >= 0) {
-			// Note the FILE_SHARE_READ attribute so that the CopyFile can succeed
-			HANDLE hFile = CreateFile(szFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-			if (hFile != INVALID_HANDLE_VALUE) {
-				ptrA buffer((char*)mir_alloc(st.st_size));
-				if (buffer != nullptr) {
-					DWORD nRead;
-					if (ReadFile(hFile, buffer, st.st_size, &nRead, nullptr)) {
-						ptrA str(mir_base64_encode(buffer, nRead));
-						const char *szFileType = ProtoGetAvatarMimeType(ProtoGetBufferFormat(buffer));
-						if (str != nullptr && szFileType != nullptr) {
-							n = v << XCHILD("PHOTO");
-							n << XCHILD("TYPE", szFileType);
-							n << XCHILD("BINVAL", str);
-
-							// NEED TO UPDATE OUR AVATAR HASH:
-							uint8_t digest[MIR_SHA1_HASH_SIZE];
-							mir_sha1_ctx sha1ctx;
-							mir_sha1_init(&sha1ctx);
-							mir_sha1_append(&sha1ctx, (uint8_t*)(LPSTR)buffer, nRead);
-							mir_sha1_finish(&sha1ctx, digest);
-
-							char buf[MIR_SHA1_HASH_SIZE * 2 + 1];
-							bin2hex(digest, sizeof(digest), buf);
-
-							if (bPhotoChanged) {
-								DeleteFile(szAvatarName);
-
-								GetAvatarFileName(0, szAvatarName, _countof(szAvatarName));
-								CopyFile(szFileName, szAvatarName, FALSE);
-							}
-
-							setString("AvatarHash", buf);
-						}
-					}
-				}
-				CloseHandle(hFile);
-			}
-		}
-	}
+	AppendPhotoToVcard(v, bPhotoChanged, szPhotoFileName);
 
 	XmlNodeHash hasher;
 	v->Accept(&hasher);
 	setString("VCardHash", hasher.getResult());
 
 	m_ThreadInfo->send(iq);
+}
+
+void CJabberProto::AppendPhotoToVcard(TiXmlElement *v, bool bPhotoChanged, const wchar_t *szPhotoFileName, MCONTACT hContact)
+{
+	wchar_t szAvatarName[MAX_PATH];
+	GetAvatarFileName(hContact, szAvatarName, _countof(szAvatarName));
+	
+	const wchar_t *szFileName = (bPhotoChanged) ? szPhotoFileName : szAvatarName;
+
+	// Set photo element, also update the global jabberVcardPhotoFileName to reflect the update
+	debugLogW(L"Before update, file name = %s", szFileName);
+	if (szFileName == nullptr || szFileName[0] == 0) {
+		v << XCHILD("PHOTO");
+		DeleteFileW(szAvatarName);
+		delSetting(hContact, "AvatarHash");
+		return;
+	}
+
+	debugLogW(L"Saving picture from %s", szFileName);
+
+	struct _stat st;
+	if (_wstat(szFileName, &st) < 0)
+		return;
+
+	// Note the FILE_SHARE_READ attribute so that the CopyFile can succeed
+	HANDLE hFile = CreateFile(szFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if (hFile == INVALID_HANDLE_VALUE)
+		return;
+	
+	ptrA buffer((char*)mir_alloc(st.st_size));
+	if (buffer != nullptr) {
+		DWORD nRead;
+		if (ReadFile(hFile, buffer, st.st_size, &nRead, nullptr)) {
+			ptrA str(mir_base64_encode(buffer, nRead));
+			const char *szFileType = ProtoGetAvatarMimeType(ProtoGetBufferFormat(buffer));
+			if (str != nullptr && szFileType != nullptr) {
+				auto *n = v << XCHILD("PHOTO");
+				n << XCHILD("TYPE", szFileType);
+				n << XCHILD("BINVAL", str);
+
+				// NEED TO UPDATE OUR AVATAR HASH:
+				uint8_t digest[MIR_SHA1_HASH_SIZE];
+				mir_sha1_ctx sha1ctx;
+				mir_sha1_init(&sha1ctx);
+				mir_sha1_append(&sha1ctx, (uint8_t *)(LPSTR)buffer, nRead);
+				mir_sha1_finish(&sha1ctx, digest);
+
+				char buf[MIR_SHA1_HASH_SIZE * 2 + 1];
+				bin2hex(digest, sizeof(digest), buf);
+
+				if (bPhotoChanged) {
+					DeleteFileW(szAvatarName);
+
+					GetAvatarFileName(hContact, szAvatarName, _countof(szAvatarName));
+					CopyFileW(szFileName, szAvatarName, FALSE);
+				}
+
+				setString(hContact, "AvatarHash", buf);
+			}
+		}
+	}
+	CloseHandle(hFile);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -1047,8 +1051,9 @@ void CJabberProto::OnUserInfoInit_VCard(WPARAM wParam, LPARAM)
 	m_szPhotoFileName[0] = 0;
 
 	USERINFOPAGE uip = {};
-	uip.flags = ODPF_UNICODE | ODPF_USERINFOTAB | ODPF_DONTTRANSLATE;
+	uip.flags = ODPF_UNICODE | ODPF_USERINFOTAB | ODPF_ICON;
 	uip.szGroup.w = m_tszUserName;
+	uip.dwInitParam = (LPARAM)Skin_GetProtoIcon(m_szModuleName, ID_STATUS_ONLINE);
 
 	uip.pDialog = new JabberVcardPersonalDlg(this);
 	uip.szTitle.w = LPGENW("General");
