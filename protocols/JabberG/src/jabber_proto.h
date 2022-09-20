@@ -839,7 +839,6 @@ struct CJabberProto : public PROTO<CJabberProto>, public IJabberInterface
 
 	void       CheckKeepAlive(void);
 
-	bool       OnProcessJingle(const TiXmlElement *node);
 	void       OnProcessIq(const TiXmlElement *node);
 	void       SetRegConfig(CJabberFormDlg *pDlg, void *from);
 	void       CancelRegConfig(CJabberFormDlg *pDlg, void *from);
