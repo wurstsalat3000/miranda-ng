@@ -991,7 +991,7 @@ CallFunctionSync @1170
 ?RemovePage@CCtrlPages@@QEAAXH@Z @1205 NONAME
 ??0MBinBuffer@@QEAA@XZ @1206 NONAME
 ??1MBinBuffer@@QEAA@XZ @1207 NONAME
-??4MBinBuffer@@QEAAAEAV0@AEBV0@@Z @1208 NONAME
+??4MBinBuffer@@QEAAAEAV0@$$QEAV0@@Z @1208 NONAME
 ?append@MBinBuffer@@QEAAXPEBX_K@Z @1209 NONAME
 ?appendBefore@MBinBuffer@@QEAAXPEBX_K@Z @1210 NONAME
 ?data@MBinBuffer@@QEBAPEADXZ @1211 NONAME
@@ -1543,3 +1543,6 @@ Utils_CorrectFontSize @1762 NONAME
 ?OnResize@CDlgBase@@MEAAXXZ @1763 NONAME
 ??0MBinBuffer@@QEAA@AEBV0@@Z @1764 NONAME
 ??0MBinBuffer@@QEAA@_K@Z @1765 NONAME
+?Utils_ClipboardCopy@@YAXPEBD@Z @1766 NONAME
+?Utils_ClipboardCopy@@YAXPEB_W@Z @1767 NONAME
+?mir_base64_encode@@YAPEADAEBVMBinBuffer@@@Z @1768 NONAME

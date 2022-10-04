@@ -488,7 +488,7 @@ void CInfoPanel::RenderIPUIN(const HDC hdc, RECT& rcItem)
 		}
 		else str = tszUin;
 
-		if (M.GetByte("ShowClientDescription", 1)) {
+		if (g_plugin.bShowDesc) {
 			ptrW szVersion(db_get_wsa(m_dat->m_cache->getActiveContact(), m_dat->m_cache->getActiveProto(), "MirVer"));
 			if (szVersion)
 				str.AppendFormat(TranslateT("  Client: %s"), szVersion.get());
@@ -734,11 +734,11 @@ LRESULT CInfoPanel::cmdHandler(UINT cmd)
 	switch (cmd) {
 	case CMD_IP_COPY:
 		if (m_hoverFlags & HOVER_NICK) {
-			Utils::CopyToClipBoard(m_dat->m_cache->getNick(), m_dat->GetHwnd());
+			Utils_ClipboardCopy(m_dat->m_cache->getNick());
 			return(S_OK);
 		}
 		if (m_hoverFlags & HOVER_UIN) {
-			Utils::CopyToClipBoard(m_isChat ? m_dat->m_si->ptszTopic : m_dat->m_cache->getUIN(), m_dat->GetHwnd());
+			Utils_ClipboardCopy(m_isChat ? m_dat->m_si->ptszTopic : m_dat->m_cache->getUIN());
 			return(S_OK);
 		}
 		break;

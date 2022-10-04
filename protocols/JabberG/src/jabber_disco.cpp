@@ -1056,15 +1056,15 @@ public:
 					break;
 
 				case SD_ACT_COPYJID:
-					JabberCopyText(m_hwnd, pNode->GetJid());
+					Utils_ClipboardCopyU(pNode->GetJid());
 					break;
 
 				case SD_ACT_COPYNODE:
-					JabberCopyText(m_hwnd, pNode->GetNode());
+					Utils_ClipboardCopyU(pNode->GetNode());
 					break;
 
 				case SD_ACT_COPYINFO:
-					JabberCopyText(m_hwnd, pNode->GetTooltipText());
+					Utils_ClipboardCopyU(pNode->GetTooltipText());
 					break;
 
 				case SD_ACT_FAVORITE:

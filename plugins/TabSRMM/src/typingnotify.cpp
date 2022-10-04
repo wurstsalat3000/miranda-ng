@@ -1,7 +1,5 @@
 #include "stdafx.h"
 
-static HGENMENU hDisableMenu = nullptr;
-
 static MWindowList hPopupsList = nullptr;
 
 static uint8_t OnePopup;
@@ -12,11 +10,6 @@ static uint8_t TimeoutMode;
 static uint8_t TimeoutMode2;
 static int     Timeout;
 static int     Timeout2;
-static int     newTimeout;
-static int     newTimeout2;
-static uint8_t newTimeoutMode;
-static uint8_t newTimeoutMode2;
-static uint8_t newColorMode;
 
 static HANDLE hntfStarted = nullptr;
 static HANDLE hntfStopped = nullptr;
@@ -154,319 +147,205 @@ void TN_TypingMessage(MCONTACT hContact, int iMode)
 	PUAddPopupW(&ppd);
 }
 
-static INT_PTR CALLBACK DlgProcOpts(HWND hwndDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+class CTypingOpts : public CDlgBase
 {
-	uint16_t idCtrl, wNotifyCode;
+	CCtrlEdit value1, value2;
+	CCtrlCheck chkWinColors, chkPopupColors;
+	CCtrlCheck chkPopup, chkCustom, chkPermanent, chkProto;
+	CCtrlCheck chkPopup2, chkCustom2, chkPermanent2;
+	CCtrlButton btnPreview;
 
-	switch (msg) {
-	case WM_INITDIALOG:
-		TranslateDialogDefault(hwndDlg);
+public:
+	CTypingOpts() :
+		CDlgBase(g_plugin, IDD_OPT_TYPINGNOTIFYPOPUP),
+		btnPreview(this, IDC_PREVIEW),
+		value1(this, IDC_TIMEOUT_VALUE),
+		value2(this, IDC_TIMEOUT_VALUE2),
+		chkProto(this, IDC_TIMEOUT_PROTO),
+		chkPopup(this, IDC_TIMEOUT_POPUP),
+		chkPopup2(this, IDC_TIMEOUT_POPUP2),
+		chkCustom(this, IDC_TIMEOUT_CUSTOM),
+		chkCustom2(this, IDC_TIMEOUT_CUSTOM2),
+		chkPermanent(this, IDC_TIMEOUT_PERMANENT),
+		chkPermanent2(this, IDC_TIMEOUT_PERMANENT2),
+		chkWinColors(this, IDC_USEWINCOLORS),
+		chkPopupColors(this, IDC_USEPOPUPCOLORS)
+	{
+		btnPreview.OnClick = Callback(this, &CTypingOpts::onClick_Preview);
 
-		if (ColorMode == COLOR_WINDOWS) {
-			CheckDlgButton(hwndDlg, IDC_USEWINCOLORS, BST_CHECKED);
-			Utils::enableDlgControl(hwndDlg, IDC_USEPOPUPCOLORS, FALSE);
-			Utils::enableDlgControl(hwndDlg, IDC_USEWINCOLORS, TRUE);
-			CheckDlgButton(hwndDlg, IDC_USEPOPUPCOLORS, BST_UNCHECKED);
-		}
-		else if (ColorMode == COLOR_POPUP) {
-			CheckDlgButton(hwndDlg, IDC_USEWINCOLORS, BST_UNCHECKED);
-			Utils::enableDlgControl(hwndDlg, IDC_USEWINCOLORS, FALSE);
-			Utils::enableDlgControl(hwndDlg, IDC_USEPOPUPCOLORS, TRUE);
-			CheckDlgButton(hwndDlg, IDC_USEPOPUPCOLORS, BST_CHECKED);
-		}
+		chkWinColors.OnChange = Callback(this, &CTypingOpts::onChange_UseWinColors);
+		chkPopupColors.OnChange = Callback(this, &CTypingOpts::onChange_UsePopupColors);
+	}
+
+	bool OnInitDialog() override
+	{
+		bool bWindows = (ColorMode == COLOR_WINDOWS);
+		chkWinColors.SetState(bWindows);
+		chkWinColors.Enable(bWindows);
+		chkPopupColors.SetState(!bWindows);
+		chkPopupColors.Enable(!bWindows);
 
 		for (auto &it : colorPicker) {
-			SendDlgItemMessage(hwndDlg, it.res, CPM_SETCOLOUR, 0, it.color);
-			Utils::enableDlgControl(hwndDlg, it.res, (ColorMode == COLOR_OWN));
+			SendDlgItemMessage(m_hwnd, it.res, CPM_SETCOLOUR, 0, it.color);
+			Utils::enableDlgControl(m_hwnd, it.res, (ColorMode == COLOR_OWN));
 		}
 
-		CheckDlgButton(hwndDlg, IDC_TIMEOUT_PERMANENT, (TimeoutMode == TIMEOUT_PERMANENT) ? BST_CHECKED : BST_UNCHECKED);
-		CheckDlgButton(hwndDlg, IDC_TIMEOUT_POPUP, (TimeoutMode == TIMEOUT_POPUP) ? BST_CHECKED : BST_UNCHECKED);
-		CheckDlgButton(hwndDlg, IDC_TIMEOUT_PROTO, (TimeoutMode == TIMEOUT_PROTO) ? BST_CHECKED : BST_UNCHECKED);
-		CheckDlgButton(hwndDlg, IDC_TIMEOUT_CUSTOM, (TimeoutMode == TIMEOUT_CUSTOM) ? BST_CHECKED : BST_UNCHECKED);
-		SetDlgItemInt(hwndDlg, IDC_TIMEOUT_VALUE, Timeout, 0);
-		Utils::enableDlgControl(hwndDlg, IDC_TIMEOUT_VALUE, TimeoutMode == TIMEOUT_CUSTOM);
-
-		CheckDlgButton(hwndDlg, IDC_TIMEOUT_PERMANENT2, (TimeoutMode2 == TIMEOUT_PERMANENT) ? BST_CHECKED : BST_UNCHECKED);
-		CheckDlgButton(hwndDlg, IDC_TIMEOUT_POPUP2, (TimeoutMode2 == TIMEOUT_POPUP) ? BST_CHECKED : BST_UNCHECKED);
-		CheckDlgButton(hwndDlg, IDC_TIMEOUT_CUSTOM2, (TimeoutMode2 == TIMEOUT_CUSTOM) ? BST_CHECKED : BST_UNCHECKED);
-		SetDlgItemInt(hwndDlg, IDC_TIMEOUT_VALUE2, Timeout2, 0);
-		Utils::enableDlgControl(hwndDlg, IDC_TIMEOUT_VALUE2, TimeoutMode2 == TIMEOUT_CUSTOM);
-
-		CheckDlgButton(hwndDlg, IDC_START, (StartDisabled) ? BST_UNCHECKED : BST_CHECKED);
-		CheckDlgButton(hwndDlg, IDC_STOP, (StopDisabled) ? BST_UNCHECKED : BST_CHECKED);
-
-		CheckDlgButton(hwndDlg, IDC_ONEPOPUP, (OnePopup) ? BST_CHECKED : BST_UNCHECKED);
-
-		newTimeout = Timeout;
-		newTimeoutMode = TimeoutMode;
-		newTimeout2 = Timeout2;
-		newTimeoutMode2 = TimeoutMode2;
-		newColorMode = ColorMode;
-		break;
-
-	case WM_COMMAND:
-		idCtrl = LOWORD(wParam), wNotifyCode = HIWORD(wParam);
-
-		if (wNotifyCode == CPN_COLOURCHANGED) {
-			SendMessage(GetParent(hwndDlg), PSM_CHANGED, 0, 0);
-			return TRUE;
+		switch (TimeoutMode) {
+		case TIMEOUT_POPUP: chkPopup.SetState(true); break;
+		case TIMEOUT_PROTO: chkProto.SetState(true); break;
+		case TIMEOUT_CUSTOM: chkCustom.SetState(true); break;
+		case TIMEOUT_PERMANENT: chkPermanent.SetState(true); break;
 		}
+		value1.SetInt(Timeout);
 
-		switch (idCtrl) {
-		case IDC_USEWINCOLORS:
-			if (wNotifyCode == BN_CLICKED) {
-				bool bEnableOthers;
-
-				if (IsDlgButtonChecked(hwndDlg, IDC_USEWINCOLORS)) {
-					newColorMode = COLOR_WINDOWS;
-					bEnableOthers = false;
-				}
-				else {
-					newColorMode = COLOR_OWN;
-					bEnableOthers = true;
-				}
-
-				for (auto &it : colorPicker)
-					Utils::enableDlgControl(hwndDlg, it.res, bEnableOthers);
-
-				Utils::enableDlgControl(hwndDlg, IDC_USEPOPUPCOLORS, bEnableOthers);
-
-				SendMessage(GetParent(hwndDlg), PSM_CHANGED, 0, 0);
-			}
-			break;
-
-		case IDC_USEPOPUPCOLORS:
-			if (wNotifyCode == BN_CLICKED) {
-				bool bEnableOthers;
-
-				if (IsDlgButtonChecked(hwndDlg, IDC_USEPOPUPCOLORS)) {
-					newColorMode = COLOR_POPUP;
-					bEnableOthers = false;
-				}
-				else {
-					newColorMode = COLOR_OWN;
-					bEnableOthers = true;
-				}
-
-				for (int i = 0; i < sizeof(colorPicker) / sizeof(colorPicker[0]); i++)
-					Utils::enableDlgControl(hwndDlg, colorPicker[i].res, bEnableOthers);
-
-				Utils::enableDlgControl(hwndDlg, IDC_USEWINCOLORS, bEnableOthers);
-
-				SendMessage(GetParent(hwndDlg), PSM_CHANGED, 0, 0);
-			}
-			break;
-
-		case IDC_ONEPOPUP:
-		case IDC_CLIST:
-		case IDC_DISABLED:
-		case IDC_START:
-		case IDC_STOP:
-		case IDC_WOCL:
-			if (wNotifyCode == BN_CLICKED)
-				SendMessage(GetParent(hwndDlg), PSM_CHANGED, 0, 0);
-			break;
-
-		case IDC_PREVIEW:
-			for (int i = 0; i < 2; i++) {
-				POPUPDATAW ppd;
-				int notyping;
-				if (i == PROTOTYPE_CONTACTTYPING_OFF) {
-					wcsncpy_s(ppd.lpwzContactName, TranslateT("Contact"), _TRUNCATE);
-					wcsncpy_s(ppd.lpwzText, TranslateT("...has stopped typing."), _TRUNCATE);
-					notyping = 1;
-				}
-				else {
-					wcsncpy_s(ppd.lpwzContactName, TranslateT("Contact"), _TRUNCATE);
-					wcsncpy_s(ppd.lpwzText, TranslateT("...is typing a message."), _TRUNCATE);
-					notyping = 0;
-				}
-
-				switch (newColorMode) {
-				case COLOR_OWN:
-					ppd.colorText = SendDlgItemMessage(hwndDlg, colorPicker[2 * notyping + 1].res, CPM_GETCOLOUR, 0, 0);
-					ppd.colorBack = SendDlgItemMessage(hwndDlg, colorPicker[2 * notyping].res, CPM_GETCOLOUR, 0, 0);
-					break;
-				case COLOR_WINDOWS:
-					ppd.colorBack = GetSysColor(COLOR_BTNFACE);
-					ppd.colorText = GetSysColor(COLOR_WINDOWTEXT);
-					break;
-				case COLOR_POPUP:
-				default:
-					ppd.colorBack = ppd.colorText = 0;
-					break;
-				}
-
-				if (notyping)
-					switch (newTimeoutMode2) {
-					case TIMEOUT_CUSTOM:
-						ppd.iSeconds = newTimeout2;
-						break;
-					case TIMEOUT_PERMANENT:
-						ppd.iSeconds = -1;
-						break;
-					case TIMEOUT_POPUP:
-					default:
-						ppd.iSeconds = 0;
-						break;
-				}
-				else
-					switch (newTimeoutMode) {
-					case TIMEOUT_CUSTOM:
-						ppd.iSeconds = newTimeout;
-						break;
-					case TIMEOUT_PROTO:
-						ppd.iSeconds = 10;
-						break;
-					case TIMEOUT_PERMANENT:
-						ppd.iSeconds = -1;
-						break;
-					case TIMEOUT_POPUP:
-					default:
-						ppd.iSeconds = 0;
-						break;
-				}
-
-				ppd.lchIcon = PluginConfig.g_buttonBarIcons[ICON_DEFAULT_TYPING];
-				ppd.lchContact = wParam;
-				ppd.PluginWindowProc = nullptr;
-				ppd.PluginData = nullptr;
-				PUAddPopupW(&ppd);
-			}
-			break;
-
-		case IDC_TIMEOUT_POPUP2:
-			if (wNotifyCode != BN_CLICKED)
-				break;
-			newTimeoutMode2 = TIMEOUT_POPUP;
-			Utils::enableDlgControl(hwndDlg, IDC_TIMEOUT_VALUE2, 0);
-			SendMessage(GetParent(hwndDlg), PSM_CHANGED, 0, 0);
-			break;
-
-		case IDC_TIMEOUT_CUSTOM2:
-			if (wNotifyCode != BN_CLICKED)
-				break;
-			newTimeoutMode2 = TIMEOUT_CUSTOM;
-			Utils::enableDlgControl(hwndDlg, IDC_TIMEOUT_VALUE2, 1);
-			SendMessage(GetParent(hwndDlg), PSM_CHANGED, 0, 0);
-			break;
-
-		case IDC_TIMEOUT_POPUP:
-			if (wNotifyCode != BN_CLICKED)
-				break;
-			newTimeoutMode = TIMEOUT_POPUP;
-			Utils::enableDlgControl(hwndDlg, IDC_TIMEOUT_VALUE, 0);
-			SendMessage(GetParent(hwndDlg), PSM_CHANGED, 0, 0);
-			break;
-
-		case IDC_TIMEOUT_PERMANENT:
-			if (wNotifyCode != BN_CLICKED)
-				break;
-			newTimeoutMode = TIMEOUT_PERMANENT;
-			Utils::enableDlgControl(hwndDlg, IDC_TIMEOUT_VALUE, 0);
-			SendMessage(GetParent(hwndDlg), PSM_CHANGED, 0, 0);
-			break;
-
-		case IDC_TIMEOUT_PERMANENT2:
-			if (wNotifyCode != BN_CLICKED)
-				break;
-			newTimeoutMode2 = TIMEOUT_PERMANENT;
-			Utils::enableDlgControl(hwndDlg, IDC_TIMEOUT_VALUE2, 0);
-			SendMessage(GetParent(hwndDlg), PSM_CHANGED, 0, 0);
-			break;
-
-		case IDC_TIMEOUT_CUSTOM:
-			if (wNotifyCode != BN_CLICKED)
-				break;
-			newTimeoutMode = TIMEOUT_CUSTOM;
-			Utils::enableDlgControl(hwndDlg, IDC_TIMEOUT_VALUE, 1);
-			SendMessage(GetParent(hwndDlg), PSM_CHANGED, 0, 0);
-			break;
-
-		case IDC_TIMEOUT_PROTO:
-			if (wNotifyCode != BN_CLICKED)
-				break;
-			newTimeoutMode = TIMEOUT_PROTO;
-			Utils::enableDlgControl(hwndDlg, IDC_TIMEOUT_VALUE, 0);
-			SendMessage(GetParent(hwndDlg), PSM_CHANGED, 0, 0);
-			break;
-
-		case IDC_TIMEOUT_VALUE:
-		case IDC_TIMEOUT_VALUE2:
-			int newValue = GetDlgItemInt(hwndDlg, idCtrl, nullptr, 0);
-
-			if (wNotifyCode == EN_KILLFOCUS) {
-				int oldValue;
-
-				if (idCtrl == IDC_TIMEOUT_VALUE)
-					oldValue = newTimeout;
-				else
-					oldValue = newTimeout2;
-
-				if (newValue != oldValue)
-					SetDlgItemInt(hwndDlg, idCtrl, oldValue, 0);
-				return TRUE;
-			}
-			if (wNotifyCode != EN_CHANGE || (HWND)lParam != GetFocus())
-				return TRUE;
-
-			if (newValue > TIMEOUT_MAXVALUE)
-				newValue = TIMEOUT_MAXVALUE;
-			else if (newValue < TIMEOUT_MINVALUE)
-				newValue = TIMEOUT_MINVALUE;
-
-			if (idCtrl == IDC_TIMEOUT_VALUE)
-				newTimeout = newValue;
-			else
-				newTimeout2 = newValue;
-
-			SendMessage(GetParent(hwndDlg), PSM_CHANGED, 0, 0);
+		switch (TimeoutMode2) {
+		case TIMEOUT_POPUP: chkPopup2.SetState(true); break;
+		case TIMEOUT_CUSTOM: chkCustom2.SetState(true); break;
+		case TIMEOUT_PERMANENT: chkPermanent2.SetState(true); break;
 		}
-		break;
+		value2.SetInt(Timeout2);
 
-	case WM_NOTIFY:
-		switch (((LPNMHDR)lParam)->idFrom) {
-		case 0:
-			switch (((LPNMHDR)lParam)->code) {
-			case PSN_APPLY:
-				for (int i = 0; i < sizeof(colorPicker) / sizeof(colorPicker[0]); i++) {
-					colorPicker[i].color = SendDlgItemMessage(hwndDlg, colorPicker[i].res, CPM_GETCOLOUR, 0, 0);
-					db_set_dw(0, TypingModule, colorPicker[i].desc, colorPicker[i].color);
-				}
-
-				Timeout = newTimeout;   TimeoutMode = newTimeoutMode;
-				Timeout2 = newTimeout2; TimeoutMode2 = newTimeoutMode2;
-				ColorMode = newColorMode;
-
-				StartDisabled = IsDlgButtonChecked(hwndDlg, IDC_START) ? 0 : 2;
-				StopDisabled = IsDlgButtonChecked(hwndDlg, IDC_STOP) ? 0 : 4;
-				OnePopup = IsDlgButtonChecked(hwndDlg, IDC_ONEPOPUP);
-
-				db_set_b(0, TypingModule, SET_ONEPOPUP, OnePopup);
-				db_set_b(0, TypingModule, SET_DISABLED, (uint8_t)(StartDisabled | StopDisabled));
-				db_set_b(0, TypingModule, SET_COLOR_MODE, ColorMode);
-				db_set_b(0, TypingModule, SET_TIMEOUT_MODE, TimeoutMode);
-				db_set_b(0, TypingModule, SET_TIMEOUT, (uint8_t)Timeout);
-				db_set_b(0, TypingModule, SET_TIMEOUT_MODE2, TimeoutMode2);
-				db_set_b(0, TypingModule, SET_TIMEOUT2, (uint8_t)Timeout2);
-				return TRUE;
-			}
-		}
-		break;
+		CheckDlgButton(m_hwnd, IDC_START, (StartDisabled) ? BST_UNCHECKED : BST_CHECKED);
+		CheckDlgButton(m_hwnd, IDC_STOP, (StopDisabled) ? BST_UNCHECKED : BST_CHECKED);
+		CheckDlgButton(m_hwnd, IDC_ONEPOPUP, (OnePopup) ? BST_CHECKED : BST_UNCHECKED);
+		return true;
 	}
-	return FALSE;
-}
+
+	void OnChange() override
+	{
+		value1.Enable(chkCustom.IsChecked());
+		value2.Enable(chkCustom2.IsChecked());
+	}
+
+	bool OnApply() override
+	{
+		for (int i = 0; i < sizeof(colorPicker) / sizeof(colorPicker[0]); i++) {
+			colorPicker[i].color = SendDlgItemMessage(m_hwnd, colorPicker[i].res, CPM_GETCOLOUR, 0, 0);
+			db_set_dw(0, TypingModule, colorPicker[i].desc, colorPicker[i].color);
+		}
+
+		if (chkCustom.IsChecked())
+			TimeoutMode = TIMEOUT_CUSTOM;
+		else if (chkPermanent.IsChecked())
+			TimeoutMode = TIMEOUT_PERMANENT;
+		else if (chkProto.IsChecked())
+			TimeoutMode = TIMEOUT_PROTO;
+		else
+			TimeoutMode = TIMEOUT_POPUP;
+		Timeout = value1.GetInt();
+
+		if (chkCustom2.IsChecked())
+			TimeoutMode2 = TIMEOUT_CUSTOM;
+		else if (chkPermanent2.IsChecked())
+			TimeoutMode2 = TIMEOUT_PERMANENT;
+		else
+			TimeoutMode2 = TIMEOUT_POPUP;
+		Timeout2 = value2.GetInt(); 
+
+		if (chkWinColors.IsChecked())
+			ColorMode = COLOR_WINDOWS;
+		else if (chkPopupColors.IsChecked())
+			ColorMode = COLOR_POPUP;
+		else
+			ColorMode = COLOR_OWN;
+
+		StartDisabled = IsDlgButtonChecked(m_hwnd, IDC_START) ? 0 : 2;
+		StopDisabled = IsDlgButtonChecked(m_hwnd, IDC_STOP) ? 0 : 4;
+		OnePopup = IsDlgButtonChecked(m_hwnd, IDC_ONEPOPUP);
+
+		db_set_b(0, TypingModule, SET_ONEPOPUP, OnePopup);
+		db_set_b(0, TypingModule, SET_DISABLED, (uint8_t)(StartDisabled | StopDisabled));
+		db_set_b(0, TypingModule, SET_COLOR_MODE, ColorMode);
+		db_set_b(0, TypingModule, SET_TIMEOUT_MODE, TimeoutMode);
+		db_set_b(0, TypingModule, SET_TIMEOUT, (uint8_t)Timeout);
+		db_set_b(0, TypingModule, SET_TIMEOUT_MODE2, TimeoutMode2);
+		db_set_b(0, TypingModule, SET_TIMEOUT2, (uint8_t)Timeout2);
+		return true;
+	}
+
+	void onChange_UseWinColors(CCtrlCheck *pCheck)
+	{
+		bool bEnableOthers = !pCheck->IsChecked();
+
+		for (auto &it : colorPicker)
+			Utils::enableDlgControl(m_hwnd, it.res, bEnableOthers);
+
+		chkPopupColors.Enable(bEnableOthers);
+	}
+
+	void onChange_UsePopupColors(CCtrlCheck *pCheck)
+	{
+		bool bEnableOthers = !pCheck->IsChecked();
+
+		for (int i = 0; i < sizeof(colorPicker) / sizeof(colorPicker[0]); i++)
+			Utils::enableDlgControl(m_hwnd, colorPicker[i].res, bEnableOthers);
+
+		chkWinColors.Enable(bEnableOthers);
+	}
+
+	void onClick_Preview(CCtrlButton *)
+	{
+		for (int i = 0; i < 2; i++) {
+			POPUPDATAW ppd;
+			int notyping;
+			if (i == PROTOTYPE_CONTACTTYPING_OFF) {
+				wcsncpy_s(ppd.lpwzContactName, TranslateT("Contact"), _TRUNCATE);
+				wcsncpy_s(ppd.lpwzText, TranslateT("...has stopped typing."), _TRUNCATE);
+				notyping = 1;
+			}
+			else {
+				wcsncpy_s(ppd.lpwzContactName, TranslateT("Contact"), _TRUNCATE);
+				wcsncpy_s(ppd.lpwzText, TranslateT("...is typing a message."), _TRUNCATE);
+				notyping = 0;
+			}
+
+			if (chkWinColors.IsChecked()) {
+				ppd.colorBack = GetSysColor(COLOR_BTNFACE);
+				ppd.colorText = GetSysColor(COLOR_WINDOWTEXT);
+			}
+			else if (chkPopupColors.IsChecked()) {
+				ppd.colorBack = ppd.colorText = 0;
+			}
+			else {
+				ppd.colorText = SendDlgItemMessage(m_hwnd, colorPicker[2 * notyping + 1].res, CPM_GETCOLOUR, 0, 0);
+				ppd.colorBack = SendDlgItemMessage(m_hwnd, colorPicker[2 * notyping].res, CPM_GETCOLOUR, 0, 0);
+			}
+
+			if (notyping) {
+				if (chkCustom2.IsChecked())
+					ppd.iSeconds = value2.GetInt();
+				else if (chkPermanent2.IsChecked())
+					ppd.iSeconds = -1;
+				else
+					ppd.iSeconds = 0;
+			}
+			else {
+				if (chkCustom.IsChecked())
+					ppd.iSeconds = value1.GetInt();
+				else if (chkPermanent.IsChecked())
+					ppd.iSeconds = -1;
+				else if (chkProto.IsChecked())
+					ppd.iSeconds = 10;
+				else
+					ppd.iSeconds = 0;
+			}
+			ppd.lchIcon = PluginConfig.g_buttonBarIcons[ICON_DEFAULT_TYPING];
+			ppd.lchContact = 0;
+			ppd.PluginWindowProc = nullptr;
+			ppd.PluginData = nullptr;
+			PUAddPopupW(&ppd);
+		}
+	}
+};
 
 int TN_OptionsInitialize(WPARAM wParam, LPARAM)
 {
 	OPTIONSDIALOGPAGE odp = {};
+	odp.flags = ODPF_BOLDGROUPS;
 	odp.position = 100000000;
-	odp.pszTemplate = MAKEINTRESOURCEA(IDD_OPT_TYPINGNOTIFYPOPUP);
 	odp.szTitle.a = LPGEN("Typing notify");
 	odp.szGroup.a = LPGEN("Popups");
-	odp.flags = ODPF_BOLDGROUPS;
-	odp.pfnDlgProc = DlgProcOpts;
+	odp.pDialog = new CTypingOpts();
 	g_plugin.addOptions(wParam, &odp);
 	return 0;
 }

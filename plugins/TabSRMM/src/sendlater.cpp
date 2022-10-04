@@ -311,7 +311,7 @@ public:
 	CSendLaterDlg() :
 		CDlgBase(g_plugin, IDD_SENDLATER_QMGR),
 		m_list(this, IDC_QMGR_LIST),
-		m_link(this, IDC_QMGR_HELP, "https://wiki.miranda-ng.org/index.php?title=Plugin:TabSRMM/en/Send_later"),
+		m_link(this, IDC_QMGR_HELP, "https://wiki.miranda-ng.org/index.php?title=Plugin:TabSRMM/Send_later"),
 		m_filter(this, IDC_QMGR_FILTER),
 		chkError(this, IDC_QMGR_ERRORPOPUPS),
 		chkSuccess(this, IDC_QMGR_SUCCESSPOPUPS)
@@ -442,7 +442,7 @@ public:
 					job->writeFlags();
 					break;
 				case ID_QUEUEMANAGER_COPYMESSAGETOCLIPBOARD:
-					Utils::CopyToClipBoard((wchar_t*)ptrW(mir_utf8decodeW(job->sendBuffer)), m_hwnd);
+					Utils_ClipboardCopy(ptrW(mir_utf8decodeW(job->sendBuffer)));
 					break;
 				case ID_QUEUEMANAGER_RESETSELECTED:
 					if (job->bCode == CSendLaterJob::JOB_DEFERRED) {
