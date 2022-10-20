@@ -267,13 +267,14 @@ int CJabberProto::OnPrebuildContactMenu(WPARAM hContact, LPARAM)
 		return 0;
 
 	Menu_ShowItem(GetMenuItem(PROTO_MENU_LOAD_HISTORY), false);
-	bool bIsChatRoom = isChatRoom(hContact);
-	bool bIsTransport = getBool(hContact, "IsTransport", false);
 
 	if (!m_bJabberOnline)
 		return 0;
 
-	Menu_ShowItem(g_hMenuDirectPresence[0], TRUE);
+	bool bIsChatRoom = isChatRoom(hContact);
+	bool bIsTransport = getBool(hContact, "IsTransport", false);
+
+	Menu_ShowItem(g_hMenuDirectPresence[0], true);
 	for (int i = 0; i < _countof(PresenceModeArray); i++)
 		Menu_ModifyItem(g_hMenuDirectPresence[i + 1], nullptr, Skin_GetProtoIcon(m_szModuleName, PresenceModeArray[i].mode));
 
@@ -284,15 +285,15 @@ int CJabberProto::OnPrebuildContactMenu(WPARAM hContact, LPARAM)
 		ptrA roomid(getUStringA(hContact, "ChatRoomID"));
 		if (ListGetItemPtr(LIST_BOOKMARK, roomid) == nullptr)
 			if (m_ThreadInfo && m_ThreadInfo->jabberServerCaps & JABBER_CAPS_PRIVATE_STORAGE)
-				Menu_ShowItem(g_hMenuAddBookmark, TRUE);
+				Menu_ShowItem(g_hMenuAddBookmark, true);
 	}
 
 	if (bIsChatRoom == GCW_CHATROOM)
 		return 0;
 
 	if (bIsTransport) {
-		Menu_ShowItem(g_hMenuLogin, TRUE);
-		Menu_ShowItem(g_hMenuRefresh, TRUE);
+		Menu_ShowItem(g_hMenuLogin, true);
+		Menu_ShowItem(g_hMenuRefresh, true);
 	}
 
 	ptrA jid(getUStringA(hContact, "jid"));
@@ -309,12 +310,12 @@ int CJabberProto::OnPrebuildContactMenu(WPARAM hContact, LPARAM)
 	Menu_ShowItem(GetMenuItem(PROTO_MENU_GRANT_AUTH), bCtrlPressed);
 	Menu_ShowItem(GetMenuItem(PROTO_MENU_REVOKE_AUTH), item->subscription == SUB_FROM || item->subscription == SUB_BOTH || bCtrlPressed);
 	Menu_ShowItem(g_hMenuCommands, ((jcb & JABBER_CAPS_COMMANDS) != 0) || bCtrlPressed);
-	Menu_ShowItem(g_hMenuSendNote, TRUE);
+	Menu_ShowItem(g_hMenuSendNote, true);
 
 	if (item->arResources.getCount() == 0)
 		return 0;
 
-	Menu_ShowItem(g_hMenuResourcesRoot, TRUE);
+	Menu_ShowItem(g_hMenuResourcesRoot, true);
 	Menu_ModifyItem(g_hMenuResourcesRoot, nullptr, m_hProtoIcon);
 	Menu_ModifyItem(g_hMenuResourcesActive, nullptr, m_hProtoIcon, (item->resourceMode == RSMODE_LASTSEEN) ? CMIF_CHECKED : 0);
 	Menu_ModifyItem(g_hMenuResourcesServer, nullptr, m_hProtoIcon, (item->resourceMode == RSMODE_SERVER) ? CMIF_CHECKED : 0);
@@ -356,7 +357,7 @@ int CJabberProto::OnPrebuildContactMenu(WPARAM hContact, LPARAM)
 			Menu_ModifyItem(m_phMenuResourceItems[i], szTmp, hIcon);
 			DestroyIcon(hIcon);
 		}
-		else Menu_ShowItem(m_phMenuResourceItems[i], FALSE);
+		else Menu_ShowItem(m_phMenuResourceItems[i], false);
 	}
 
 	m_nMenuResourceItems = nMenuResourceItemsNew;

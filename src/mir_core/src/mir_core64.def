@@ -994,7 +994,7 @@ CallFunctionSync @1170
 ??4MBinBuffer@@QEAAAEAV0@$$QEAV0@@Z @1208 NONAME
 ?append@MBinBuffer@@QEAAXPEBX_K@Z @1209 NONAME
 ?appendBefore@MBinBuffer@@QEAAXPEBX_K@Z @1210 NONAME
-?data@MBinBuffer@@QEBAPEADXZ @1211 NONAME
+?data@MBinBuffer@@QEBAPEAEXZ @1211 NONAME
 ?isEmpty@MBinBuffer@@QEBA_NXZ @1212 NONAME
 ?length@MBinBuffer@@QEBA_KXZ @1213 NONAME
 ?remove@MBinBuffer@@QEAAX_K@Z @1214 NONAME
@@ -1546,3 +1546,5 @@ Utils_CorrectFontSize @1762 NONAME
 ?Utils_ClipboardCopy@@YAXPEBD@Z @1766 NONAME
 ?Utils_ClipboardCopy@@YAXPEB_W@Z @1767 NONAME
 ?mir_base64_encode@@YAPEADAEBVMBinBuffer@@@Z @1768 NONAME
+?append@MBinBuffer@@QEAAXAEBV1@@Z @1769 NONAME
+?appendBefore@MBinBuffer@@QEAAXAEBV1@@Z @1770 NONAME

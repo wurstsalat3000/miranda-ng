@@ -883,17 +883,23 @@ HANDLE CJabberProto::SendFile(MCONTACT hContact, const wchar_t *szDescription, w
 ////////////////////////////////////////////////////////////////////////////////////////
 // JabberSendMessage - sends a message
 
-int CJabberProto::SendMsg(MCONTACT hContact, int unused_unknown, const char *pszSrc)
+int CJabberProto::SendMsg(MCONTACT hContact, int /*flags*/, const char *pszSrc)
+{
+	XmlNode m("message");
+	return SendMsgEx(hContact, pszSrc, m);
+}
+
+int CJabberProto::SendMsgEx(MCONTACT hContact, const char *pszSrc, XmlNode &m)
 {
 	char szClientJid[JABBER_MAX_JID_LEN];
 	if (!m_bJabberOnline || !GetClientJID(hContact, szClientJid, _countof(szClientJid))) {
 		ProtoBroadcastAsync(hContact, ACKTYPE_MESSAGE, ACKRESULT_FAILED, 0, (LPARAM)TranslateT("Protocol is offline or no JID"));
-		return 1;
+		return -1;
 	}
 
 	if (m_bUseOMEMO && OmemoIsEnabled(hContact)) {
 		if (!OmemoCheckSession(hContact)) {
-			OmemoPutMessageToOutgoingQueue(hContact, unused_unknown, pszSrc);
+			OmemoPutMessageToOutgoingQueue(hContact, pszSrc);
 			int id = SerialNext();
 			ProtoBroadcastAsync(hContact, ACKTYPE_MESSAGE, ACKRESULT_SUCCESS, (HANDLE)id);
 			return id;
@@ -917,7 +923,6 @@ int CJabberProto::SendMsg(MCONTACT hContact, int unused_unknown, const char *psz
 		msgType = "groupchat";
 	else
 		msgType = "chat";
-	XmlNode m("message");
 
 	// omemo enabled in options, omemo enabled for contact
 	if (m_bUseOMEMO && OmemoIsEnabled(hContact) && !mir_strcmp(msgType, "chat")) {
@@ -960,8 +965,7 @@ int CJabberProto::SendMsg(MCONTACT hContact, int unused_unknown, const char *psz
 		// if message sent to groupchat
 		!mir_strcmp(msgType, "groupchat") ||
 		// if message delivery check disabled in settings
-		!bSendReceipt)
-	{
+		!bSendReceipt) {
 		if (mir_strcmp(msgType, "groupchat"))
 			XmlAddAttrID(m, id);
 
