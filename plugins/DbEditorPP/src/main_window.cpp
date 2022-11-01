@@ -12,9 +12,6 @@ CMainDlg *g_pMainWindow = nullptr;
 extern volatile BOOL populating, skipEnter;
 extern volatile int Select;
 
-void EditFinish(int selected);
-void EditLabel(int item, int subitem);
-
 static LRESULT CALLBACK ModuleTreeSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	switch (msg) {
@@ -26,7 +23,7 @@ static LRESULT CALLBACK ModuleTreeSubclassProc(HWND hwnd, UINT msg, WPARAM wPara
 			ScreenToClient(hwnd, &hti.pt);
 
 			if (TreeView_HitTest(hwnd, &hti)) {
-				if (hti.flags&TVHT_ONITEM)
+				if (hti.flags & TVHT_ONITEM)
 					TreeView_SelectItem(hwnd, hti.hItem);
 			}
 		}
@@ -183,7 +180,7 @@ static ColumnsSettings csSettingList[] =
 	{ nullptr }
 };
 
-bool CMainDlg::OnInitDialog() 
+bool CMainDlg::OnInitDialog()
 {
 	g_pMainWindow = this;
 
@@ -286,9 +283,10 @@ void CMainDlg::OnDestroy()
 		}
 	}
 
-	g_plugin.setByte("HexMode", (byte)g_Hex);
-	g_plugin.setByte("SortMode", (byte)g_Order);
-	g_plugin.setByte("DontAllowInLineEdit", (byte)!g_Inline);
+	g_plugin.setByte("HexMode", (uint8_t)g_Hex);
+	g_plugin.setByte("SortMode", (uint8_t)g_Order);
+	g_plugin.setByte("DontAllowInLineEdit", (uint8_t)!g_Inline);
+	g_plugin.setWord("Splitter", (uint16_t)m_splitterPos);
 
 	WINDOWPLACEMENT wp;
 	wp.length = sizeof(WINDOWPLACEMENT);
@@ -356,23 +354,16 @@ int CMainDlg::Resizer(UTILRESIZECONTROL *urc)
 
 void CMainDlg::onChange_Splitter(CSplitter *)
 {
-	RECT rc2;
-	GetWindowRect(m_hwnd, &rc2);
-
 	RECT rc;
-	GetClientRect(m_hwnd, &rc);
-	POINT pt = { m_splitter.GetPos(), 0 };
-	ScreenToClient(m_hwnd, &pt);
+	GetWindowRect(m_hwnd, &rc);
 
-	m_splitterPos = rc.left + pt.x + 1;
+	m_splitterPos = m_splitter.GetPos() + 1;
 	if (m_splitterPos < 150)
 		m_splitterPos = 150;
-	if (m_splitterPos > rc2.right - rc2.left - 150)
-		m_splitterPos = rc2.right - rc2.left - 150;
-	SetWindowLongPtr(GetDlgItem(m_hwnd, IDC_SPLITTER), GWLP_USERDATA, m_splitterPos);
-	g_plugin.setWord("Splitter", (uint16_t)m_splitterPos);
 
-	PostMessage(m_hwnd, WM_SIZE, 0, 0);
+	int iMaxPanelWidth = rc.right - rc.left - 150;
+	if (m_splitterPos > iMaxPanelWidth)
+		m_splitterPos = iMaxPanelWidth;
 }
 
 void CMainDlg::FindItem(int type, MCONTACT hContact, const char *szModule, const char *szSetting)
@@ -544,7 +535,7 @@ void CMainDlg::onItemExpand_Modules(CCtrlTreeView::TEventInfo *ev)
 void CMainDlg::onSelChanged_Modules(CCtrlTreeView::TEventInfo *ev)
 {
 	wchar_t text[FLD_SIZE];
-		
+
 	TVITEMEX tvi = {};
 	tvi.mask = TVIF_HANDLE | TVIF_PARAM | TVIF_TEXT;
 	tvi.hItem = ev->nmtv->itemNew.hItem;

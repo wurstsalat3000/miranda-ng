@@ -1069,11 +1069,6 @@ void CJabberProto::GroupchatProcessMessage(const TiXmlElement *node)
 	if (!msgTime || msgTime > now)
 		msgTime = now;
 
-	// ugly hack to cut out group chat history: 2 seconds delay to skip all old messages
-	// unfortunately there's no other way to detect if that message came online or from history
-	if (now - item->iChatInitTime > 2)
-		item->bChatLogging = true;
-
 	if (resource != nullptr) {
 		pResourceStatus r(item->findResource(resource));
 		nick = (r && r->m_szNick) ? r->m_szNick.get() : resource;
@@ -1084,6 +1079,7 @@ void CJabberProto::GroupchatProcessMessage(const TiXmlElement *node)
 	szText.Replace("%", "%%");
 	szText += imgLink;
 
+	gce.dwFlags = GCEF_UTF8;
 	gce.pszUID.a = resource;
 	gce.pszNick.a = nick;
 	gce.time = msgTime;

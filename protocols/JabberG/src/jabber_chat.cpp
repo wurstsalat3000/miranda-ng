@@ -252,7 +252,7 @@ void CJabberProto::GcLogUpdateMemberStatus(JABBER_LIST_ITEM *item, const char *r
 		myNick = JabberNickFromJID(m_szJabberJID);
 
 	GCEVENT gce = { m_szModuleName, item->jid, 0 };
-	gce.dwFlags = GCEF_UTF8 | ((item->bChatLogging) ? GCEF_ADDTOLOG : 0);
+	gce.dwFlags = GCEF_UTF8 | ((item->bChatLogging) ? 0 : GCEF_SILENT);
 	gce.pszNick.a = nick;
 	gce.pszUID.a = resource;
 	gce.pszUserInfo.a = jid;
@@ -273,6 +273,7 @@ void CJabberProto::GcLogUpdateMemberStatus(JABBER_LIST_ITEM *item, const char *r
 					switch (action) {
 					case 0:
 						gce.iType = GC_EVENT_ADDSTATUS;
+						__fallthrough;
 					case GC_EVENT_REMOVESTATUS:
 						gce.dwFlags &= ~GCEF_ADDTOLOG;
 					}
